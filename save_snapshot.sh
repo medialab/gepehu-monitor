@@ -1,5 +1,15 @@
 #!/bin/bash
 
+set -eo pipefail
+
+LOCK=/tmp/gpu-monitor.lock
+
+if [ -e "$LOCK" ]; then
+  echo "Lock file already present, skipping run..."
+  exit 1
+fi
+touch $LOCK
+
 cd $(dirname $0)
 
 mkdir -p data/json
@@ -14,3 +24,4 @@ pyenv activate gpuview
 dt=$(date +%Y%m%d%H%M%S)
 gpustat -a --json > data/json/${dt}.json && python parse_json.py data/json/${dt}.json
 
+rm -f $LOCK
