@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html>
+ <head>
+  <meta charset="UTF-8">
+  <title>gepehu history monitor</title>
+  <link href="css/roboto.css" rel="stylesheet">
+  <link href="css/vuetify.min.css" rel="stylesheet">
+  <link href="css/style.css" rel="stylesheet">
+ </head>
+ <body>
+  <div id="dashboard"><v-app dark toolbar>
+    <aside class="navigation-drawer navigation-drawer--absolute navigation-drawer--clipped navigation-drawer--is-booted navigation-drawer--is-mobile navigation-drawer--open navigation-drawer--permanent">
+      <v-list>
+        <v-subheader class="mt-2 grey--text">Metrics</v-subheader>
+        <v-list-tile
+          v-for="item in metrics"
+          :key="item.id"
+          :class="{'unchecked': !item.selected}"
+          @click="selectMetric(item.id)"
+        >
+          <v-list-tile-action class="radio-group">
+            <v-icon :style="{'color': item.color}">fiber_manual_record</v-icon>
+          </v-list-tile-action>
+          <v-list-tile-content>
+            <v-list-tile-title>
+              <span class="gpu">{{ item.name }}</span>
+            </v-list-tile-title>
+          </v-list-tile-content>
+          <v-list-tile-action>
+            <v-radio-group v-model="metricChoice">
+              <v-radio hide-details color="white" :value="item.id"></v-radio>
+            </v-radio-group>
+          </v-list-tile-action>
+        </v-list-tile>
+      </v-list>
+
+      <v-subheader v-if="hoverDate" class="mt-2 grey--text" style="margin-top: 35px!important">PROCESSES RUNNING ({{ hoverDate }})</v-subheader>
+      <v-list v-if="hoverDate" class="processes">
+        <v-list-tile
+          v-for="process in hoverProcesses"
+          class="process"
+        >
+          <p>
+            <v-icon :style="{'color': process.color}">computer</v-icon>
+            <v-span :style="{'color': process.color}">&nbsp;&nbsp;{{ process.user }}</v-span>
+          </p>
+          <p class="command" v-html="process.command"></p>
+        </v-list-tile>
+      </v-list>
+      <div class="navigation-drawer__border"></div>
+    </aside>
+    <v-toolbar class="dark" fixed>
+      <v-toolbar-title>
+        <v-title>gepehu history monitor</v-title>
+      </v-toolbar-title>
+      <v-spacer></v-spacer>
+      <a href="https://medialab.sciencespo.fr/" target="_blank">
+        <img src="css/medialab.png" alt="médialab Sciences Po" height=35 />
+      </a>
+    </v-toolbar>
+    <main>
+      <div class="svg" style="height: 6000px">
+        <div class="legende">
+          <div
+            v-for="item in gpus"
+            class="btn btn-raised theme--light"
+            :style="item.style"
+          >
+            <div class="btn__content">
+              <span>{{ item.name }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+    <div class="tooltipBox"><center><b>{{ hoverDate }}</b></center></div>
+  </v-app></div>
+
+  <script type="text/javascript" src="js/d3.v4.min.js"></script>
+  <script type="text/javascript" src="js/vue.min.js"></script>
+  <script type="text/javascript" src="js/vuetify.min.js"></script>
+  <script type="text/javascript" src="js/pako.min.js"></script>
+  <script type="text/javascript" src="js/gepehu-monitor.js"></script>
+ </body>
+</html>
