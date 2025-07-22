@@ -28,8 +28,8 @@ new Vue({
     metricChoice: "usage_percent",
     metrics: [
       {id: "usage_percent",  selected: true,  name: "GPU use (%)",       color: "deepskyblue"},
-      {id: "memory_percent", selected: false, name: "Memory use (%)",        color: "lawngreen"},
-      {id: "memory",         selected: false, name: "Memory use (Mo)",       color: "lawngreen"},
+      {id: "memory_percent", selected: false, name: "Memory use (%)",    color: "lawngreen"},
+      {id: "memory",         selected: false, name: "Memory use (Mo)",   color: "lawngreen"},
       {id: "energy",         selected: false, name: "Energy (W)",        color: "gold"},
       {id: "temperature",    selected: false, name: "Temperature (°C)",  color: "crimson"},
       {id: "fan_speed",      selected: false, name: "Fan speed (R/min)", color: "mediumorchid"}
@@ -84,6 +84,7 @@ new Vue({
         while (gpus.pop()) {};
       }
       while (gpus_done.pop()) {};
+      Object.keys(processes).forEach(d => { processes[d] = [] });
 
       d3.request("data/list").mimeType("text/plain").get(function(error, list_gpus) {
         if (error) throw error;
@@ -166,7 +167,7 @@ new Vue({
 */
 
       // Setup dimensions
-      var margin = {top: 20, right: 70, bottom: 20, left: 40, middle: 30},
+      var margin = {top: 20, right: 70, bottom: 30, left: 40, middle: 30},
         mainH = window.innerHeight - document.querySelector("nav").getBoundingClientRect().height,
         svgH = Math.max(140, mainH),
         svgW = window.innerWidth - document.querySelector("aside").getBoundingClientRect().width,
