@@ -27,12 +27,12 @@ def parse(filename):
             "gpu_name": "%s #%s" % (gpu["name"], gpu["index"]),
             "usage_percent": gpu["utilization.gpu"],
             "memory": gpu["memory.used"],
-            "memory_percent": 100 * gpu["memory.used"] / gpu["memory.total"],
+            "memory_percent": round(100 * gpu["memory.used"] / gpu["memory.total"], 2),
             "energy": gpu["power.draw"],
             "temperature": gpu["temperature.gpu"],
             "fan_speed": gpu["fan.speed"],
-            "users": "|".join([p["username"] for p in gpu["processes"]]),
-            "processes": "|".join([" ".join(p["full_command"]) for p in gpu["processes"]])
+            "users": "§".join([p["username"] for p in gpu["processes"]]),
+            "processes": "§".join([" ".join(p["full_command"]) for p in gpu["processes"]])
         }
 
         csvfilename = os.path.join("data", "%s.csv" % gpu["uuid"])

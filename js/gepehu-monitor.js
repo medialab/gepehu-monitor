@@ -121,8 +121,8 @@ new Vue({
               d.energy = parseInt(d.energy);
               d.temperature = parseInt(d.temperature);
               d.fan_speed_percent = parseInt(d.fan_speed) / 100;
-              d.users = d.users.split("|").filter(x => x);
-              d.processes = d.processes.replace(/\//g, "/&#8203;").split("|").filter(x => x);
+              d.users = d.users.split("§").filter(x => x);
+              d.processes = d.processes.replace(/\//g, "/&#8203;").split("§").filter(x => x);
               d.processes.forEach((p, i) => {
                 if (!processes[d.datetime])
                   processes[d.datetime] = [];
