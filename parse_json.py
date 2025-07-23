@@ -27,7 +27,7 @@ def parse(filename):
             "gpu_name": "%s #%s" % (gpu["name"], gpu["index"]),
             "usage_percent": gpu["utilization.gpu"],
             "memory": gpu["memory.used"],
-            "memory_percent": round(100 * gpu["memory.used"] / gpu["memory.total"], 2),
+            "memory_percent": round(100 * gpu["memory.used"] / gpu["memory.total"], 3),
             "energy": gpu["power.draw"],
             "temperature": gpu["temperature.gpu"],
             "fan_speed": gpu["fan.speed"],
