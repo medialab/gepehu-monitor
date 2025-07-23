@@ -59,7 +59,7 @@ new Vue({
     window.addEventListener("hashchange", this.readUrl);
     window.addEventListener("resize", this.draw);
     this.download_data();
-    setInterval(this.download_data, 10000);
+    setInterval(this.download_data, 10_000);
   },
   methods: {
     readUrl: function() {
@@ -149,22 +149,14 @@ new Vue({
         metric = this.metrics.filter(x => x.id == metricChoice)[0],
         percent = ~metricChoice.indexOf("_percent");
 
-      var start = d3.startDate(gpus),
-        end = new Date(),
-        data = [];
-      this.extent = Math.round((end - start) / 1000);
+      var full_start = d3.startDate(gpus),
+        full_end = new Date();
+      this.extent = Math.round((full_end - full_start) / 60_000);
 
-/*
-      // TODO: Zoom in timeline
-      start.setDate(start.getDate() + this.hiddenLeft);
-      end.setDate(end.getDate() - this.hiddenRight);
-      this.data.slice(this.hiddenLeft, this.data.length - this.hiddenRight)
-      .forEach(function(d) {
-        if (d.datetime < start || d.datetime > end) return;
-        data.push(d);
-      });
-      this.curView = Math.round((end - start) / (1000*60*60*24));
-*/
+      // Zoom in timeline
+      var start = new Date(full_start.getTime() + this.hiddenLeft * 60_000),
+        end = new Date(full_end.getTime() - this.hiddenRight * 60_000);
+      this.curView = Math.round((end - start) / 60_000);
 
       // Setup dimensions
       var margin = {top: 20, right: 70, bottom: 30, left: 40, middle: 30},
@@ -208,8 +200,12 @@ new Vue({
         .attr("height", svgH);
 
       gpus.forEach((gpu, idx) => {
-        var data = gpu.rows;
-        // TODO: filter zoomed data here
+        // Filter zoomed out data
+        var data = [];
+        gpu.rows.forEach(function(d) {
+          if (d.datetime < start || d.datetime > end) return;
+          data.push(d);
+        });
 
         var g = svg.append("g")
           .attr("transform", "translate(" + margin.left + "," + (margin.top + idx * (height + margin.middle)) + ")");
@@ -261,8 +257,8 @@ new Vue({
             .on("mouseover", this.hover)
             .on("mousemove", this.displayTooltip)
             .on("mouseleave", this.clearTooltip)
-            //.on("wheel", this.zoom)
-            //.on("dblclick", this.zoom); */
+            .on("wheel", this.zoom)
+            .on("dblclick", this.zoom);
         this.clearTooltip();
 
       });
@@ -281,18 +277,19 @@ new Vue({
     clearTooltip: function(d, i) {
       this.hoverProcesses = [];
       this.hoverDate = null;
+      this.hoverText = null;
       if (i) d3.selectAll('rect[did="' + i + '"]').style("fill-opacity", 0);
       d3.select(".tooltipBox").style("display", "none");
     },
     zoom: function(d, i, rects) {
       var direction = (d3.event.deltaY && d3.event.deltaY > 0 ? -1 : 1),
-        days = this.curView / 3,
+        minutes = this.curView / 3,
         gauge = (i + 1) / rects.length,
         gaugeLeft = (gauge > 0.05 ? gauge : 0),
         gaugeRight = (gauge < 0.95 ? 1 - gauge : 0);
-      if (direction == 1 && this.extent - this.hiddenLeft - this.hiddenRight < 35) return;
-      this.hiddenLeft += Math.floor(gaugeLeft * days * direction);
-      this.hiddenRight += Math.floor(gaugeRight * days * direction);
+      if (direction == 1 && this.extent - this.hiddenLeft - this.hiddenRight < 1_440) return;
+      this.hiddenLeft += Math.floor(gaugeLeft * minutes * direction);
+      this.hiddenRight += Math.floor(gaugeRight * minutes * direction);
       if (this.hiddenLeft < 0) this.hiddenLeft = 0;
       if (this.hiddenRight < 0) this.hiddenRight = 0;
       this.draw();
