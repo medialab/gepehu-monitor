@@ -23,7 +23,7 @@
           </v-list-tile-action>
           <v-list-tile-content>
             <v-list-tile-title>
-              <span class="gpu">{{ item.name }}</span>
+              <span>{{ item.name }} ({{ item.unit }})</span>
             </v-list-tile-title>
           </v-list-tile-content>
           <v-list-tile-action>
@@ -73,7 +73,10 @@
         </div>
       </div>
     </main>
-    <div class="tooltipBox"><center><b>{{ hoverDate }}</b></center></div>
+    <div class="tooltipBox"><center>
+      <b>{{ hoverDate }}</b><br/>
+      <span v-html="hoverText"></span>
+    </center></div>
   </v-app></div>
 
   <script type="text/javascript" src="js/d3.v4.min.js"></script>

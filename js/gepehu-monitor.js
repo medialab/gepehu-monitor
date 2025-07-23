@@ -1,3 +1,11 @@
+/* TODO
+ * - add timeslider/selecter
+ * - handle time period / zoom in urls
+ * - data : cleanup pipe separated into §
+ * - data : less numbers for percents
+ * - add menu to select visible gpus, if multiple selected do agregation
+ * - change view to parallel GPUs + multi stacked metrics?
+*/
 d3.formatDefaultLocale({
   "decimal": ",",
   "thousands": " ",
@@ -26,17 +34,19 @@ new Vue({
     tmpgpus: [],
     gpus_done: [],
     metricChoice: "usage_percent",
+    metricUnit: "%",
     metrics: [
-      {id: "usage_percent",  selected: true,  name: "GPU use (%)",       color: "deepskyblue"},
-      {id: "memory_percent", selected: false, name: "Memory use (%)",    color: "lawngreen"},
-      {id: "memory",         selected: false, name: "Memory use (Mo)",   color: "lawngreen"},
-      {id: "energy",         selected: false, name: "Energy (W)",        color: "gold"},
-      {id: "temperature",    selected: false, name: "Temperature (°C)",  color: "crimson"},
-      {id: "fan_speed",      selected: false, name: "Fan speed (R/min)", color: "mediumorchid"}
+      {id: "usage_percent",     selected: true,  name: "GPU",          unit: "%",  color: "deepskyblue"},
+      {id: "memory_percent",    selected: false, name: "Memory use",   unit: "%",  color: "lawngreen"},
+      {id: "memory",            selected: false, name: "Memory use",   unit: "Mo", color: "lawngreen"},
+      {id: "energy",            selected: false, name: "Energy",       unit: "W",  color: "gold"},
+      {id: "temperature",       selected: false, name: "Temperature",  unit: "°C", color: "crimson"},
+      {id: "fan_speed_percent", selected: false, name: "Fan speed",    unit: "%",  color: "mediumorchid"}
     ],
     processes: {},
     hoverProcesses: [],
     hoverDate: null,
+    hoverText: null,
     hiddenLeft: 0,
     hiddenRight: 0
   },
@@ -70,9 +80,14 @@ new Vue({
       if (!newMetric || !~this.metrics.map(x => x.id).indexOf(newMetric))
         newMetric = "usage_percent";
       this.metricChoice = newMetric;
+      var unit = null;
       this.metrics.forEach(function(m) {
-        m.selected = (m.id === newMetric);
+        if (m.id === newMetric) {
+          m.selected = true;
+          unit = m.unit;
+        } else m.selected = false;
       });
+      this.metricUnit = unit;
     },
     download_data: function() {
       var gpus = this.tmpgpus,
@@ -105,7 +120,7 @@ new Vue({
               d.memory = parseInt(d.memory);
               d.energy = parseInt(d.energy);
               d.temperature = parseInt(d.temperature);
-              d.fan_speed = parseInt(d.fan_speed);
+              d.fan_speed_percent = parseInt(d.fan_speed) / 100;
               d.users = d.users.split("|").filter(x => x);
               d.processes = d.processes.replace(/\//g, "/&#8203;").split("|").filter(x => x);
               d.processes.forEach((p, i) => {
@@ -144,7 +159,7 @@ new Vue({
       if (!gpus.length) return;
 
       d3.select(".svg").selectAll("svg").remove();
-    
+
       var metricChoice = this.metricChoice,
         metric = this.metrics.filter(x => x.id == metricChoice)[0],
         percent = ~metricChoice.indexOf("_percent");
@@ -268,6 +283,8 @@ new Vue({
     },
     displayTooltip: function(d, i, rects) {
       this.hoverDate = d3.timeFormat("%d %b %y %H:%M")(d.datetime);
+      var percent = ~this.metricChoice.indexOf("_percent");
+      this.hoverText = d3[(percent ? "percent" : "int") + "Format"](d[this.metricChoice]) + (percent ? "" : " " + this.metricUnit);
       this.hoverProcesses = this.processes[d.datetime].sort((a, b) => a.gpu.localeCompare(b.gpu));
       d3.select(".tooltipBox")
       .style("left", d3.event.pageX - 60 + "px")
