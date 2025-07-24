@@ -26,10 +26,14 @@ pyenv activate gpuview
 JSONFILE=data/json/$(date +%Y%m%d%H%M%S).json
 gpustat -a --json > $JSONFILE
 if ls data | grep .csv.gz > /dev/null; then
-  gunzip data/*.csv.gz
+  gunzip -k data/*.csv.gz
 fi
 python parse_json.py $JSONFILE
-gzip data/*.csv
+gzip -S .tmpgz data/*.csv
+ls data/*.tmpgz | while read f; do
+  outf=${f/\.tmpgz/.gz}
+  mv $f $outf
+done
 
 # Cleanup
 rm -f $JSONFILE
