@@ -28,9 +28,9 @@ d3.datize = function(d) {
   return new Date(d);
 }
 d3.startDate = function(gpus){
-  return d3.min(gpus.map(function(a) {
-    if (a.rows.length)
-      return new Date(a.rows[0].datetime);
+  return d3.min(gpus.map(function(g) {
+    if (g.rows && g.rows.length)
+      return new Date(g.rows[0].datetime);
      return new Date();
   }));
 }
@@ -64,12 +64,12 @@ new Vue({
     }
   },
   watch: {
-    url: function(newValue) {
-      window.location.hash = newValue;
+    url: function(val) {
+      window.location.hash = val;
     },
-    gpusDone: function(newValue) {
-      if (newValue.length && newValue.length === this.tmpgpus.length)
-        this.prepareData();
+    gpusDone: function(val) {
+      if (val.length && val.length === this.gpusToDo.length)
+        this.draw();
     }
   },
   mounted: function() {
@@ -293,7 +293,7 @@ new Vue({
       this.hoverDate = d3.timeFormat("%d %b %y %H:%M")(d.datetime);
       var percent = ~this.metricChoice.indexOf("_percent");
       this.hoverText = d3[(percent ? "percent" : "int") + "Format"](d[this.metricChoice]) + (percent ? "" : " " + this.metricUnit);
-      this.hoverProcesses = this.processes[d.datetime].sort((a, b) => a.gpu.localeCompare(b.gpu));
+      this.hoverProcesses = (this.processes[d.datetime] || []).sort((a, b) => a.gpu.localeCompare(b.gpu));
       d3.select(".tooltipBox")
       .style("left", d3.event.pageX - 60 + "px")
       .style("top", d3.event.pageY + 20 + "px")
