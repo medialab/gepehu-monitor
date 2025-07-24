@@ -40,7 +40,7 @@ new Vue({
   data: {
     gpus: [],
     tmpgpus: [],
-    gpus_done: [],
+    gpusDone: [],
     metricChoice: "usage_percent",
     metricUnit: "%",
     metrics: [
@@ -67,7 +67,7 @@ new Vue({
     url: function(newValue) {
       window.location.hash = newValue;
     },
-    gpus_done: function(newValue) {
+    gpusDone: function(newValue) {
       if (newValue.length && newValue.length === this.tmpgpus.length)
         this.prepareData();
     }
@@ -76,8 +76,8 @@ new Vue({
     this.readUrl();
     window.addEventListener("hashchange", this.readUrl);
     window.addEventListener("resize", this.draw);
-    this.download_data();
-    setInterval(this.download_data, 10_000);
+    this.downloadData();
+    setInterval(this.downloadData, 10_000);
   },
   methods: {
     readUrl: function() {
@@ -97,27 +97,27 @@ new Vue({
       });
       this.metricUnit = unit;
     },
-    download_data: function() {
+    downloadData: function() {
       var gpus = this.tmpgpus,
-        gpus_done = this.gpus_done,
+        gpusDone = this.gpusDone,
         processes = this.processes,
         cacheBypass = new Date().getTime();
       if (gpus.length) {
-        if (gpus.length !== gpus_done.length) return;
+        if (gpus.length !== gpusDone.length) return;
         while (gpus.pop()) {};
       }
-      while (gpus_done.pop()) {};
+      while (gpusDone.pop()) {};
       Object.keys(processes).forEach(d => { processes[d] = [] });
 
-      d3.request("data/list").mimeType("text/plain").get(function(error, list_gpus) {
+      d3.request("data/list").mimeType("text/plain").get(function(error, listGPUs) {
         if (error) throw error;
-        list_gpus.responseText.trim().split("\n").forEach(function(gpu_id, idx) {
+        listGPUs.responseText.trim().split("\n").forEach(function(gpuID, idx) {
           var gpu = {
-            id: gpu_id,
+            id: gpuID,
             color: d3.defaultColors[idx]
           };
           gpus.push(gpu);
-          fetch("data/" + gpu_id + ".csv.gz?" + cacheBypass)
+          fetch("data/" + gpuID + ".csv.gz?" + cacheBypass)
           .then(res => res.arrayBuffer())
           .then((body) => {
             var res = pako.ungzip(body, {to: "string"})
@@ -144,7 +144,7 @@ new Vue({
               return d;
             });
             gpu.name = gpu.rows[0].gpu_name;
-            gpus_done.push(gpu.id);
+            gpusDone.push(gpu.id);
           });
         });
       });
@@ -172,13 +172,13 @@ new Vue({
         metric = this.metrics.filter(x => x.id == metricChoice)[0],
         percent = ~metricChoice.indexOf("_percent");
 
-      var full_start = d3.startDate(gpus),
-        full_end = new Date();
-      this.extent = Math.round((full_end - full_start) / 60_000);
+      var fullStart = d3.startDate(gpus),
+        fullEnd = new Date();
+      this.extent = Math.round((fullEnd - fullStart) / 60_000);
 
       // Zoom in timeline
-      var start = new Date(full_start.getTime() + this.hiddenLeft * 60_000),
-        end = new Date(full_end.getTime() - this.hiddenRight * 60_000);
+      var start = new Date(fullStart.getTime() + this.hiddenLeft * 60_000),
+        end = new Date(fullEnd.getTime() - this.hiddenRight * 60_000);
       this.curView = Math.round((end - start) / 60_000);
 
       // Setup dimensions
