@@ -3,7 +3,6 @@
  * - handle time period / zoom in urls
  * - add loader and disable buttons during first loading ?
  * - fix legends with too many ticks on stacked and adapt time legend when zoomed too much
- * - remove percents commas in legends
  * - write automatically list file by python if missing, in proper order
  * - think whether to keep or not full processed commands
  * - style tooltip as a table (metrics aligned left, value aligned right)
@@ -26,6 +25,14 @@ d3.defaultColors = [
 
 d3.intFormat = d3.format(",d");
 d3.percentFormat = d3.format(".1%");
+d3.axisFormat = (unit) => {
+  if (unit === "%")
+    return d3.format(".0%");
+  else if (unit === "Mo")
+    return d => d3.format(",d")(d).replace(" 000", " Go");
+  return d => d3.intFormat(d) + " " + unit;
+};
+
 d3.datize = function(d) {
   return new Date(d);
 }
@@ -305,7 +312,7 @@ new Vue({
           g.append("g")
             .attr("class", "axis axis--y")
             .attr("transform", "translate(" + (width) + ", 0)")
-            .call(d3.axisRight(yScale).ticks(8, d3[(percent ? "percent" : "int") + "Format"]).tickSizeOuter(0));
+            .call(d3.axisRight(yScale).ticks(height > 200 ? 8 : 4).tickFormat(d3.axisFormat(metric.unit)).tickSizeOuter(0));
     
           // Draw X axis
           g.append("g")
