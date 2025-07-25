@@ -20,7 +20,7 @@
           @click="toggleGPU(index)"
         >
           <v-list-tile-action class="radio-group">
-            <v-icon :style="{'color': item.color}">fiber_manual_record</v-icon>
+            <v-icon :style="{color: item.color}">fiber_manual_record</v-icon>
           </v-list-tile-action>
           <v-list-tile-content>
             <v-list-tile-title>
@@ -63,7 +63,7 @@
           @click="toggleMetric(item.id)"
         >
           <v-list-tile-action class="radio-group">
-            <v-icon :style="{'color': item.color}">fiber_manual_record</v-icon>
+            <v-icon :style="{color: item.color}">fiber_manual_record</v-icon>
           </v-list-tile-action>
           <v-list-tile-content>
             <v-list-tile-title>
@@ -86,8 +86,8 @@
           class="process"
         >
           <p>
-            <v-icon :style="{'color': process.color}">computer</v-icon>
-            <v-span :style="{'color': process.color}">&nbsp;&nbsp;{{ process.user }}</v-span>
+            <v-icon :style="{color: process.color}">computer</v-icon>
+            <v-span :style="{color: process.color}">&nbsp;&nbsp;{{ process.user }}</v-span>
           </p>
           <p class="command" v-html="process.command"></p>
         </v-list-tile>
@@ -129,8 +129,12 @@
       </div>
     </main>
     <div class="tooltipBox"><center>
-      <b>{{ hoverDate }}</b><br/>
-      <span v-html="hoverText"></span>
+      <b>{{ hoverDate }}</b>
+      <hr/>
+      <div v-for="item in hoverText">
+        <span class="tooltip-key" :style="{color: item.color}">{{item.metric}}:</span>
+        <span class="tooltip-val">{{item.value}}</span>
+      </div>
     </center></div>
   </v-app></div>
 

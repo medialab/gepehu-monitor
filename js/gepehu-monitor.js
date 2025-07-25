@@ -1,10 +1,10 @@
 /* TODO
+ * - add loader and disable buttons during first loading ?
  * - add timeslider/selecter
  * - handle time period / zoom in urls
- * - add loader and disable buttons during first loading ?
  * - write automatically list file by python if missing, in proper order
- * - think whether to keep or not full processed commands
- * - style tooltip as a table (metrics aligned left, value aligned right)
+ * - add a metric of processes/users
+ * - think whether to keep or not full processed commands within sidebar
 */
 d3.formatDefaultLocale({
   "decimal": ",",
@@ -61,7 +61,7 @@ new Vue({
     processes: {},
     hoverProcesses: [],
     hoverDate: null,
-    hoverText: null,
+    hoverText: [],
     hiddenLeft: 0,
     hiddenRight: 0
   },
@@ -356,16 +356,19 @@ new Vue({
     },
     displayTooltip: function(d, i, rects) {
       this.hoverDate = d3.timeFormat("%d %b %y %H:%M")(d.datetime);
-      var hoverText = [];
+      this.hoverText = [];
       this.metricsChoices.forEach((metricChoice, metric_idx) => {
         var metric = this.metrics.filter(x => x.id == metricChoice)[0],
           percent = ~metricChoice.indexOf("_percent");
-        hoverText.push(metric.name + ": " + d3[(percent ? "percent" : "int") + "Format"](d[metricChoice]) + (percent ? "" : " " + metric.unit));
+        this.hoverText.push({
+          metric: metric.name,
+          color: metric.color,
+          value: d3[(percent ? "percent" : "int") + "Format"](d[metricChoice]) + (percent ? "" : " " + metric.unit)
+        });
       });
-      this.hoverText = "<hr/>" + hoverText.join("<br/>").replace(/ /g, "&nbsp;");
       this.hoverProcesses = (this.processes[d.datetime] || []).filter(p => ~this.gpusChoices.indexOf(p.gpu_index)).sort((a, b) => a.gpu.localeCompare(b.gpu));
       d3.select(".tooltipBox")
-      .style("left", d3.event.pageX - 60 + "px")
+      .style("left", d3.event.pageX - 120 + "px")
       .style("top", d3.event.pageY + 20 + "px")
       .style("display", "block");
     },

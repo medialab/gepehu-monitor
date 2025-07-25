@@ -122,18 +122,31 @@ rect.tooltip {
   fill-opacity: 0;
 }
 .tooltipBox {
-  background: lightgrey;
-  border: 1px solid black;
+  background: #444;
+  border: 1px solid #DDD;
   border-radius: 5px;
-  color: black;
+  color: #DDD;
   display: none;
-  min-width: 120px;
+  min-width: 180px;
+  max-width: 180px;
   position: absolute;
   top: 50%;
   left: 50%;
   padding: 5px;
   font-size: 14px;
   z-index: 1000;
+}
+.tooltipBox hr {
+  margin-bottom: 8px;
+}
+.tooltipBox div {
+  width: 100%;
+  display: inline-block;
+  display: flex;
+  justify-content: space-between;
+}
+.tooltip-key {
+  font-weight: bold;
 }
 .dialog a, .dialog a:visited {
   color: grey;
