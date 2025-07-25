@@ -38,6 +38,9 @@ aside {
 .subheader b {
   color: white;
 }
+.lower {
+  text-transform: lowercase!important;
+}
 .unchecked {
   opacity: 0.3;
 }

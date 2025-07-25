@@ -11,7 +11,7 @@
   <div id="dashboard"><v-app dark toolbar>
     <aside class="navigation-drawer navigation-drawer--absolute navigation-drawer--clipped navigation-drawer--is-booted navigation-drawer--is-mobile navigation-drawer--open navigation-drawer--permanent">
       <v-list>
-        <v-subheader class="mt-2 grey--text">GPUs</v-subheader>
+        <v-subheader class="mt-2 grey--text">GPU<span class="lower">s</span></v-subheader>
 
         <v-list-tile
           v-for="(item, index) in gpus"
@@ -107,7 +107,7 @@
       <center id="loader" v-if="loading">
         <img src="css/loader.gif" alt="loader" /><br/>
       </center>
-      <div class="svg" :style="{height: '6000px', opacity: 1 - loading}">
+      <div class="svg" :style="{height: '6000px', opacity: 1 - loading, display: gpusChoices.length ? 'block' : 'none'}">
         <div class="legende">
           <div
             v-for="item in gpus"
@@ -125,7 +125,7 @@
             style="font-size: 14px; background-color: lightgrey; top: 20px; left: 40px"
           >
             <div class="">
-              <span>{{ gpusChoices.length }} GPU<span style="text-transform: lowercase">s</span>
+              <span>{{ gpusChoices.length }} GPU<span class="lower">s</span>
             </div>
           </div>
         </div>

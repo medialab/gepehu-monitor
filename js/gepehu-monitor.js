@@ -1,5 +1,5 @@
 /* TODO
- * - add loader and disable buttons during first loading ?
+ * - fix single not working
  * - add timeslider/selecter
  * - handle time period / zoom in urls
  * - add a metric of processes/users
@@ -109,6 +109,13 @@ new Vue({
   methods: {
     init: function() {
       this.readUrl(true);
+      if (!this.gpusChoices.length)
+        for (var i = 0; i < this.gpus.length; i++)
+          this.toggleGPU(i, true);
+      if (!this.metricsChoices.length) {
+        this.toggleMetric("usage_percent", true);
+        this.toggleMetric("memory_percent", true);
+      }
       window.addEventListener("hashchange", this.readUrl);
       window.addEventListener("resize", this.draw);
       this.downloadData();
@@ -123,11 +130,6 @@ new Vue({
         else if (key == "metrics" && values != "") values.split(",").forEach(v => self.toggleMetric(v, true));
         else if (key == "aggregated") self.aggregateGPUs = (values === "true");
       });
-      if (!this.gpusChoices.length)
-        for (var i = 0; i < self.gpus.length; i++)
-          this.toggleGPU(i, true);
-      if (!this.metricsChoices.length)
-        this.toggleMetric("usage_percent", true)
     },
     toggleGPU: function(idx, force) {
       this.gpus[idx].selected = force || !this.gpus[idx].selected;
@@ -188,7 +190,7 @@ new Vue({
       });
     },
     draw: function() {
-      if (this.gpusChoices.length != this.gpusDone.length) return;
+      if (!this.gpusChoices.length || !this.gpusDone.length || this.gpusToDo.length != this.gpusDone.length) return;
       if (!this.loading) this.loading = 0.5;
       setTimeout(this.reallyDraw, 50);
     },
