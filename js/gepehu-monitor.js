@@ -114,7 +114,7 @@ new Vue({
       if (url && ~url.indexOf("&")) url.split("&").forEach(urlPiece => {
         var [key, values] = urlPiece.split("=");
         if (key == "gpus" && values != "") values.split(",").forEach(v => self.toggleGPU(parseInt(v), true));
-        else if (key == "metrics" && values != "") values.split(",").forEach(v => self.toggleMetric(v));
+        else if (key == "metrics" && values != "") values.split(",").forEach(v => self.toggleMetric(v, true));
       });
       if (!this.gpusChoices.length)
         this.toggleGPU(0, true);
@@ -127,7 +127,7 @@ new Vue({
     toggleMetric: function(metricID, force) {
       this.metrics.forEach(function(m) {
         if (m.id === metricID)
-          m.selected = force || !m.slected;
+          m.selected = force || !m.selected;
       });
     },
     downloadData: function() {
