@@ -4,6 +4,15 @@ html {
 aside {
   height: 100%;
 }
+.switchoption .list__tile__content {
+  width: 40%;
+}
+.switchoption .list__tile__action {
+  width: 20%;
+}
+.switcher {
+  cursor: pointer;
+}
 .navigation-drawer--permanent.navigation-drawer--clipped {
   max-height: calc(100vh);
 }
@@ -38,6 +47,9 @@ aside {
 }
 .process .list__tile {
   display: block;
+}
+.input-group--disabled .input-group--selection-controls__ripple, .input-group--disabled .input-group--selection-controls__ripple:after {
+  cursor: default!important;
 }
 .input-group__input .input-group__prepend-icon, .input-group.unselected .input-group__append-icon {
   color: white!important;

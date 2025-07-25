@@ -12,6 +12,7 @@
     <aside class="navigation-drawer navigation-drawer--absolute navigation-drawer--clipped navigation-drawer--is-booted navigation-drawer--is-mobile navigation-drawer--open navigation-drawer--permanent">
       <v-list>
         <v-subheader class="mt-2 grey--text">GPUs</v-subheader>
+
         <v-list-tile
           v-for="(item, index) in gpus"
           :key="item.id"
@@ -32,6 +33,24 @@
               @click.native.stop=""
             ></v-switch>
           </v-list-tile-action>
+        </v-list-tile>
+
+        <v-list-tile class="switchoption">
+          <v-list-tile-content>
+            <v-list-tile-title
+              :class="{'switcher': gpusChoices.length > 1, 'value': true, 'unchecked': aggregateGPUs}"
+              @click="if (gpusChoices.length > 1 && aggregateGPUs) aggregateGPUs = false"
+            >compare GPUs</v-list-title>
+          </v-list-tile-content>
+          <v-list-tile-action>
+            <v-switch :disabled="gpusChoices.length < 2" light v-model="aggregateGPUs" color="white"></v-switch>
+          </v-list-tile-action>
+          <v-list-tile-content>
+            <v-list-tile-title
+              :class="{'switcher': gpusChoices.length > 1, 'value': true, 'unchecked': !aggregateGPUs}"
+              @click="if (gpusChoices.length > 1 && !aggregateGPUs) aggregateGPUs = true"
+            >aggregate GPUs</v-list-title>
+          </v-list-tile-content>
         </v-list-tile>
       </v-list>
 
@@ -89,12 +108,21 @@
         <div class="legende">
           <div
             v-for="item in gpus"
-            v-if="item.selected"
+            v-if="item.selected && !(aggregateGPUs && gpusChoices.length > 1)"
             class="btn btn-raised theme--light"
             :style="item.style"
           >
             <div class="btn__content">
               <span>{{ item.name }}</span>
+            </div>
+          </div>
+          <div
+            v-if="aggregateGPUs && gpusChoices.length > 1"
+            class="btn btn-raised theme--light"
+            style="font-size: 14px; background-color: lightgrey; top: 20px; left: 40px"
+          >
+            <div class="">
+              <span>{{ gpusChoices.length }} GPU<span style="text-transform: lowercase">s</span>
             </div>
           </div>
         </div>

@@ -1,5 +1,4 @@
 /* TODO
- * - allow to switch between parallel GPUs or agregated ones?
  * - add timeslider/selecter
  * - handle time period / zoom in urls
  * - add loader and disable buttons during first loading ?
@@ -44,6 +43,7 @@ new Vue({
     gpus: [],
     gpusToDo: [],
     gpusDone: [],
+    aggregateGPUs: true,
     metrics: [
       {id: "usage_percent",     selected: false, name: "GPU",          unit: "%",  color: "deepskyblue"},
       {id: "memory_percent",    selected: false, name: "Memory use",   unit: "%",  color: "lawngreen"},
@@ -67,7 +67,7 @@ new Vue({
       return this.metrics.filter(g => g.selected).map(g => g.id);
     },
     url: function() {
-      return "gpus=" + this.gpusChoices.join(",") + "&metrics=" + this.metricsChoices.join(",");
+      return "gpus=" + this.gpusChoices.join(",") + "&metrics=" + this.metricsChoices.join(",") + "&" + "aggregated=" + this.aggregateGPUs;
     }
   },
   watch: {
@@ -115,9 +115,11 @@ new Vue({
         var [key, values] = urlPiece.split("=");
         if (key == "gpus" && values != "") values.split(",").forEach(v => self.toggleGPU(parseInt(v), true));
         else if (key == "metrics" && values != "") values.split(",").forEach(v => self.toggleMetric(v, true));
+        else if (key == "aggregated") self.aggregateGPUs = (values === "true");
       });
       if (!this.gpusChoices.length)
-        this.toggleGPU(0, true);
+        for (var i = 0; i < self.gpus.length; i++)
+          this.toggleGPU(i, true);
       if (!this.metricsChoices.length)
         this.toggleMetric("usage_percent", true)
     },
@@ -196,12 +198,13 @@ new Vue({
       this.curView = Math.round((end - start) / 60_000);
 
       // Setup dimensions
-      var margin = {top: 20, right: 70, bottom: 30, left: 40, horiz: 70, vert: 30},
+      var nbPlots = this.aggregateGPUs ? 1 : this.gpusChoices.length,
+        margin = {top: 20, right: 70, bottom: 30, left: 40, horiz: 70, vert: 30},
         mainH = window.innerHeight - document.querySelector("nav").getBoundingClientRect().height,
         svgH = Math.max(140, mainH),
         svgW = window.innerWidth - document.querySelector("aside").getBoundingClientRect().width,
         height = (svgH - margin.top - margin.bottom - (this.metricsChoices.length - 1) * margin.vert) / this.metricsChoices.length,
-        width = (svgW - margin.left - margin.right - (this.gpusChoices.length - 1) * margin.horiz) / this.gpusChoices.length;
+        width = (svgW - margin.left - margin.right - (nbPlots - 1) * margin.horiz) / nbPlots;
 
       // Prepare svg
       var svg = d3.select(".svg")
@@ -227,6 +230,29 @@ new Vue({
         xPosition = key => function(d) { return xScale(d3.min([end, d3.max([start, d[key] ])])); },
         xWidth = function(d) { return xPosition("datetime")(d) - xPosition("prevDatetime")(d); };
 
+      // Prepare aggregated data
+      var datasets = []
+      if (self.aggregateGPUs && self.gpusChoices.length > 1) {
+        var aggregatedGPU = [];
+        for (var rowIdx = 0; rowIdx < self.gpus[0].rows.length; rowIdx++) {
+          aggregatedGPU.push({
+            datetime: self.gpus[0].rows[rowIdx].datetime,
+            prevDatetime: self.gpus[0].rows[rowIdx].prevDatetime,
+            usage_percent: d3.mean(self.gpusChoices.map(idx => self.gpus[idx].rows[rowIdx].usage_percent)),
+            memory_percent: d3.mean(self.gpusChoices.map(idx => self.gpus[idx].rows[rowIdx].memory_percent)),
+            memory: d3.sum(self.gpusChoices.map(idx => self.gpus[idx].rows[rowIdx].memory)),
+            energy: d3.sum(self.gpusChoices.map(idx => self.gpus[idx].rows[rowIdx].energy)),
+            temperature: d3.mean(self.gpusChoices.map(idx => self.gpus[idx].rows[rowIdx].temperature)),
+            fan_speed_percent: d3.mean(self.gpusChoices.map(idx => self.gpus[idx].rows[rowIdx].fan_speed_percent)),
+          });
+        }
+        datasets.push(aggregatedGPU);
+      } else {
+        self.gpusChoices.forEach((idx) => {
+          datasets.push(self.gpus[idx].rows);
+        });
+      }
+
       this.metricsChoices.forEach((metricChoice, metric_idx) => {
 
         var metric = self.metrics.filter(x => x.id == metricChoice)[0],
@@ -234,19 +260,18 @@ new Vue({
 
         // Compute Y range
         var yMin = 0, yMax = 1;
-        if (!percent) self.gpusChoices.forEach(gpu_idx => {
-          var gpuMax = d3.max(self.gpus[gpu_idx].rows.map(d => d[metricChoice]));
+        if (!percent) datasets.forEach(rows => {
+          var gpuMax = d3.max(rows.map(d => d[metricChoice]));
           yMax = d3.max([yMax, gpuMax]);
         });
         yMax *= 1.08;
         var yScale = d3.scaleLinear().range([height, 0]).domain([yMin, yMax]);
     
-        self.gpusChoices.forEach((idx, gpu_idx) => {
+        datasets.forEach((rows, gpu_idx) => {
 
           // Filter zoomed out data
-          var data = [],
-            gpu = self.gpus[idx];
-          gpu.rows.forEach(function(d) {
+          var data = [];
+          rows.forEach(function(d) {
             if (d.datetime < start || d.datetime > end) return;
             data.push(d);
           });
