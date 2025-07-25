@@ -73,7 +73,7 @@ new Vue({
   watch: {
     url: function(val) {
       window.location.hash = val;
-      this.draw();
+      setTimeout(this.draw, 50);
     },
     gpusDone: function(val) {
       if (val.length && val.length === this.gpusToDo.length)
@@ -106,7 +106,7 @@ new Vue({
       window.addEventListener("hashchange", this.readUrl);
       window.addEventListener("resize", this.draw);
       this.downloadData();
-      setInterval(this.downloadData, 10_000);
+      setInterval(this.downloadData, 20_000);
     },
     readUrl: function(init) {
       var self = this,
@@ -120,8 +120,6 @@ new Vue({
         this.toggleGPU(0, true);
       if (!this.metricsChoices.length)
         this.toggleMetric("usage_percent", true)
-      if (!init)
-        this.$nextTick(this.draw);
     },
     toggleGPU: function(idx, force) {
       this.gpus[idx].selected = force || !this.gpus[idx].selected;
@@ -182,7 +180,7 @@ new Vue({
       });
     },
     draw: function() {
-      if (!this.gpus.length) return;
+      if (!this.gpusChoices.length) return;
 
       var self = this;
 
