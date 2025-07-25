@@ -104,7 +104,10 @@
       </a>
     </v-toolbar>
     <main>
-      <div class="svg" style="height: 6000px">
+      <center id="loader" v-if="loading">
+        <img src="css/loader.gif" alt="loader" /><br/>
+      </center>
+      <div class="svg" :style="{height: '6000px', opacity: 1 - loading}">
         <div class="legende">
           <div
             v-for="item in gpus"

@@ -45,6 +45,7 @@ d3.startDate = function(gpus){
 new Vue({
   el: "#dashboard",
   data: {
+    loading: 1,
     gpus: [],
     gpusToDo: [],
     gpusDone: [],
@@ -78,7 +79,7 @@ new Vue({
   watch: {
     url: function(val) {
       window.location.hash = val;
-      setTimeout(this.draw, 50);
+      this.draw();
     },
     gpusDone: function(val) {
       if (val.length && val.length === this.gpusToDo.length)
@@ -187,8 +188,11 @@ new Vue({
       });
     },
     draw: function() {
-      if (!this.gpusChoices.length) return;
-
+      if (this.gpusChoices.length != this.gpusDone.length) return;
+      if (!this.loading) this.loading = 0.5;
+      setTimeout(this.reallyDraw, 50);
+    },
+    reallyDraw: function() {
       var self = this;
 
       d3.select(".svg").selectAll("svg").remove();
@@ -349,11 +353,13 @@ new Vue({
       });
 
       this.clearTooltip();
+      this.loading = 0;
     },
     hover: function(d, i) {
       d3.selectAll('rect[did="' + i + '"]').style("fill-opacity", 1);
     },
     displayTooltip: function(d, i, rects) {
+      if (!d3.event) return;
       this.hoverDate = d3.timeFormat("%d %b %y %H:%M")(d.datetime);
       this.hoverText = [];
       this.metricsChoices.forEach((metricChoice, metric_idx) => {
@@ -384,13 +390,16 @@ new Vue({
         gauge = (i + 1) / rects.length,
         gaugeLeft = (gauge > 0.05 ? gauge : 0),
         gaugeRight = (gauge < 0.95 ? 1 - gauge : 0);
-      if (direction == 1 && this.extent - this.hiddenLeft - this.hiddenRight < 1_440) return;
+      if ((direction == 1 && this.extent - this.hiddenLeft - this.hiddenRight < 1_440) || (direction == -1 && this.hiddenLeft + this.hiddenRight == 0)) return;
       this.hiddenLeft += Math.floor(gaugeLeft * minutes * direction);
       this.hiddenRight += Math.floor(gaugeRight * minutes * direction);
       if (this.hiddenLeft < 0) this.hiddenLeft = 0;
       if (this.hiddenRight < 0) this.hiddenRight = 0;
-      this.draw();
-      this.displayTooltip(d, i, rects);
+      if (!this.loading) this.loading = 0.2;
+      setTimeout(() => {
+        this.reallyDraw();
+        setTimeout(() => this.displayTooltip(d, i, rects), 10);
+      }, 0);
     }
   }
 });
