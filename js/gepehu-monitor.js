@@ -2,7 +2,6 @@
  * - add loader and disable buttons during first loading ?
  * - add timeslider/selecter
  * - handle time period / zoom in urls
- * - write automatically list file by python if missing, in proper order
  * - add a metric of processes/users
  * - think whether to keep or not full processed commands within sidebar
 */

@@ -21,7 +21,9 @@ def parse(filename):
     with open(filename) as f:
         data = json.load(f)
 
+    listgpus = []
     for gpu in data["gpus"]:
+        listgpus.append(gpu["uuid"])
         row = {
             "datetime": data["query_time"],
             "gpu_name": "%s #%s" % (gpu["name"], gpu["index"]),
@@ -45,6 +47,11 @@ def parse(filename):
         with open(csvfilename, "a") as f:
             writer = csv.writer(f)
             writer.writerow([row[h] for h in HEADERS])
+
+    listfile = os.path.join("data", "list")
+    if not os.path.exists(listfile):
+        with open(os.path.join("data", "list"), "w") as f:
+            f.write("\n".join(listgpus))
 
 
 if __name__ == "__main__":
