@@ -151,7 +151,7 @@ new Vue({
         while (this.gpusToDo.pop()) {};
       }
       while (this.gpusDone.pop()) {};
-      Object.keys(processes).forEach(d => { processes[d] = [] });
+      Object.keys(processes).forEach(d => { processes[d] = []; });
 
       this.gpus.forEach(gpu => {
         this.gpusToDo.push(gpu.id)
@@ -161,6 +161,7 @@ new Vue({
           var res = pako.ungzip(body, {to: "string"}),
             prevDatetime = null;
           gpu.rows = d3.csvParse(res, function(d, idx) {
+            d.raw_datetime = d.datetime;
             d.datetime = d3.datize(d.datetime);
             d.prevDatetime = prevDatetime;
             prevDatetime = d.datetime;
@@ -178,13 +179,14 @@ new Vue({
             d.processes = d.processes.replace(/\//g, "/&#8203;").split("§").filter(x => x);
             d.n_processes = d.processes.length;
             d.processes.forEach((p, i) => {
-              if (!processes[d.datetime])
-                processes[d.datetime] = [];
-              processes[d.datetime].push({
+              if (!processes[d.raw_datetime])
+                processes[d.raw_datetime] = [];
+              processes[d.raw_datetime].push({
                 gpu: d.gpu_name,
                 gpu_index: gpu.index,
-                color: gpu.color,
+                gpu_color: gpu.color,
                 user: d.users[i],
+                user_color: d3.defaultColors[users.indexOf(d.users[i])],
                 command: p
               });
             });
@@ -277,7 +279,7 @@ new Vue({
           percent = ~metricChoice.indexOf("_percent");
 
         // Compute Y range
-        var yMin = 0, yMax = (metric === "processes" && this.aggregateGPUs ? this.gpusChoices.length : 1);
+        var yMin = 0, yMax = (metricChoice === "n_processes" && this.aggregateGPUs ? this.gpusChoices.length : 1);
         if (!percent) datasets.forEach(rows => {
           var gpuMax = d3.max(rows.map(d => d[metricChoice]));
           yMax = d3.max([yMax, gpuMax]);
@@ -323,7 +325,7 @@ new Vue({
           var yAxis = d3.axisRight(yScale)
             .tickFormat(d3.axisFormat(metric.unit))
             .tickSizeOuter(0);
-          if (metric.id === "n_processes")
+          if (metricChoice === "n_processes")
             yAxis.tickValues(d3.range(0, yMax));
           else yAxis.ticks(height > 200 ? 8 : 4);
 
@@ -383,7 +385,7 @@ new Vue({
           value: d3[(percent ? "percent" : "int") + "Format"](d[metricChoice]) + (percent ? "" : " " + metric.unit)
         });
       });
-      this.hoverProcesses = (this.processes[d.datetime] || []).filter(p => ~this.gpusChoices.indexOf(p.gpu_index)).sort((a, b) => a.gpu.localeCompare(b.gpu));
+      this.hoverProcesses = (this.processes[d.raw_datetime] || []).filter(p => ~this.gpusChoices.indexOf(p.gpu_index)).sort((a, b) => a.gpu.localeCompare(b.gpu));
       d3.select(".tooltipBox")
       .style("left", d3.event.pageX - 120 + "px")
       .style("top", d3.event.pageY + 20 + "px")
