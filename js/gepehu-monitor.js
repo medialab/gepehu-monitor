@@ -2,7 +2,6 @@
  * - add timeslider/selecter
  * - handle time period / zoom in urls
  * - add loader and disable buttons during first loading ?
- * - fix legends with too many ticks on stacked and adapt time legend when zoomed too much
  * - write automatically list file by python if missing, in proper order
  * - think whether to keep or not full processed commands
  * - style tooltip as a table (metrics aligned left, value aligned right)
@@ -312,13 +311,25 @@ new Vue({
           g.append("g")
             .attr("class", "axis axis--y")
             .attr("transform", "translate(" + (width) + ", 0)")
-            .call(d3.axisRight(yScale).ticks(height > 200 ? 8 : 4).tickFormat(d3.axisFormat(metric.unit)).tickSizeOuter(0));
+            .call(d3.axisRight(yScale)
+              .ticks(height > 200 ? 8 : 4)
+              .tickFormat(d3.axisFormat(metric.unit))
+              .tickSizeOuter(0)
+            );
     
           // Draw X axis
+          var dates = d3.timeDay.range(start, end),
+            xAxis = d3.axisBottom(xScale)
+            .tickFormat(d3.timeFormat("%d %b %y"))
+            .tickSizeOuter(0);
+          if (width / dates.length < 175)
+            xAxis.ticks(width / 175);
+          else xAxis.tickValues(dates);
+
           g.append("g")
             .attr("class", "axis axis--x")
             .attr("transform", "translate(0, " + (height) + ")")
-            .call(d3.axisBottom(xScale).ticks(Math.floor(width / 175), d3.timeFormat("%d %b %y")).tickSizeOuter(0));
+            .call(xAxis);
     
           // Draw tooltips surfaces
           g.append("g")

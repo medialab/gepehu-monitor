@@ -38,7 +38,7 @@
         <v-list-tile class="switchoption">
           <v-list-tile-content>
             <v-list-tile-title
-              :class="{'switcher': gpusChoices.length > 1, 'value': true, 'unchecked': aggregateGPUs}"
+              :class="{'switcher': gpusChoices.length > 1 && aggregateGPUs, 'value': true, 'unchecked': aggregateGPUs}"
               @click="if (gpusChoices.length > 1 && aggregateGPUs) aggregateGPUs = false"
             >compare GPUs</v-list-title>
           </v-list-tile-content>
@@ -47,7 +47,7 @@
           </v-list-tile-action>
           <v-list-tile-content>
             <v-list-tile-title
-              :class="{'switcher': gpusChoices.length > 1, 'value': true, 'unchecked': !aggregateGPUs}"
+              :class="{'switcher': gpusChoices.length > 1 && !aggregateGPUs, 'value': true, 'unchecked': !aggregateGPUs}"
               @click="if (gpusChoices.length > 1 && !aggregateGPUs) aggregateGPUs = true"
             >aggregate GPUs</v-list-title>
           </v-list-tile-content>

@@ -15,6 +15,7 @@ aside {
 }
 .navigation-drawer--permanent.navigation-drawer--clipped {
   max-height: calc(100vh);
+  overflow: hidden;
 }
 .btn--floating.btn--small .icon {
   font-size: 30px;
