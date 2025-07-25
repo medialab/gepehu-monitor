@@ -55,11 +55,14 @@ aside {
 }
 .process {
   display: ruby;
-  margin: 0px 0px 25px 0px;
+  margin: 0px 0px 15px 0px;
   font-size: 14px!important;
 }
 .process .list__tile {
   display: block;
+}
+.process p {
+  margin-bottom: 10px;
 }
 .input-group--disabled .input-group--selection-controls__ripple, .input-group--disabled .input-group--selection-controls__ripple:after {
   cursor: default!important;
@@ -110,9 +113,7 @@ aside {
   margin-left: -5px
 }
 .svg {
-  overflow-x: hidden;
-  overflow-y: auto;
-  overflow-y: overlay;
+  overflow: hidden;
   display: grid;
 }
 .axis path, .axis line {

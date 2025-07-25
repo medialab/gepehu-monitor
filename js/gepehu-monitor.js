@@ -1,5 +1,4 @@
 /* TODO
- * - fix single not working
  * - add timeslider/selecter
  * - handle time period / zoom in urls
  * - add a metric of processes/users
