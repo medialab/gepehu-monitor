@@ -1,6 +1,7 @@
 /* TODO
  * - add timeslider/selecter
  * - handle time period / zoom in urls
+ * - handle dragged box zoom ?
  * - add a metric of processes/users
  * - think whether to keep or not full processed commands within sidebar
 */
@@ -55,8 +56,10 @@ new Vue({
       {id: "memory",            selected: false, name: "Memory use",   unit: "Mo", color: "lawngreen"},
       {id: "energy",            selected: false, name: "Energy",       unit: "W",  color: "gold"},
       {id: "temperature",       selected: false, name: "Temperature",  unit: "°C", color: "crimson"},
-      {id: "fan_speed_percent", selected: false, name: "Fan speed",    unit: "%",  color: "mediumorchid"}
+      {id: "fan_speed_percent", selected: false, name: "Fan speed",    unit: "%",  color: "mediumorchid"},
+      {id: "n_processes",       selected: false, name: "Processes",    unit: "", color: "grey"}
     ],
+    users: [],
     processes: {},
     hoverProcesses: [],
     hoverDate: null,
@@ -140,19 +143,18 @@ new Vue({
       });
     },
     downloadData: function() {
-      var gpusToDo = this.gpusToDo,
-        gpusDone = this.gpusDone,
+      var users = this.users,
         processes = this.processes,
         cacheBypass = new Date().getTime();
-      if (gpusToDo.length) {
-        if (gpusToDo.length !== gpusDone.length) return;
-        while (gpusToDo.pop()) {};
+      if (this.gpusToDo.length) {
+        if (this.gpusToDo.length !== this.gpusDone.length) return;
+        while (this.gpusToDo.pop()) {};
       }
-      while (gpusDone.pop()) {};
+      while (this.gpusDone.pop()) {};
       Object.keys(processes).forEach(d => { processes[d] = [] });
 
       this.gpus.forEach(gpu => {
-        gpusToDo.push(gpu.id)
+        this.gpusToDo.push(gpu.id)
         fetch("data/" + gpu.id + ".csv.gz?" + cacheBypass)
         .then(res => res.arrayBuffer())
         .then((body) => {
@@ -169,7 +171,12 @@ new Vue({
             d.temperature = parseInt(d.temperature);
             d.fan_speed_percent = parseInt(d.fan_speed) / 100;
             d.users = d.users.split("§").filter(x => x);
+            d.users.forEach(u => {
+              if (!~users.indexOf(u))
+                users.push(u);
+            });
             d.processes = d.processes.replace(/\//g, "/&#8203;").split("§").filter(x => x);
+            d.n_processes = d.processes.length;
             d.processes.forEach((p, i) => {
               if (!processes[d.datetime])
                 processes[d.datetime] = [];
@@ -184,7 +191,7 @@ new Vue({
             return d;
           });
           gpu.name = gpu.rows[0].gpu_name;
-          gpusDone.push(gpu.id);
+          this.gpusDone.push(gpu.id);
         });
       });
     },
@@ -254,6 +261,7 @@ new Vue({
             energy: d3.sum(self.gpusChoices.map(idx => self.gpus[idx].rows[rowIdx].energy)),
             temperature: d3.mean(self.gpusChoices.map(idx => self.gpus[idx].rows[rowIdx].temperature)),
             fan_speed_percent: d3.mean(self.gpusChoices.map(idx => self.gpus[idx].rows[rowIdx].fan_speed_percent)),
+            n_processes: d3.sum(self.gpusChoices.map(idx => self.gpus[idx].rows[rowIdx].n_processes))
           });
         }
         datasets.push(aggregatedGPU);
@@ -269,7 +277,7 @@ new Vue({
           percent = ~metricChoice.indexOf("_percent");
 
         // Compute Y range
-        var yMin = 0, yMax = 1;
+        var yMin = 0, yMax = (metric === "processes" && this.aggregateGPUs ? this.gpusChoices.length : 1);
         if (!percent) datasets.forEach(rows => {
           var gpuMax = d3.max(rows.map(d => d[metricChoice]));
           yMax = d3.max([yMax, gpuMax]);
@@ -312,14 +320,17 @@ new Vue({
             );
     
           // Draw Y axis
+          var yAxis = d3.axisRight(yScale)
+            .tickFormat(d3.axisFormat(metric.unit))
+            .tickSizeOuter(0);
+          if (metric.id === "n_processes")
+            yAxis.tickValues(d3.range(0, yMax));
+          else yAxis.ticks(height > 200 ? 8 : 4);
+
           g.append("g")
             .attr("class", "axis axis--y")
             .attr("transform", "translate(" + (width) + ", 0)")
-            .call(d3.axisRight(yScale)
-              .ticks(height > 200 ? 8 : 4)
-              .tickFormat(d3.axisFormat(metric.unit))
-              .tickSizeOuter(0)
-            );
+            .call(yAxis);
     
           // Draw X axis
           var dates = d3.timeDay.range(start, end),
