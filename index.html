@@ -87,7 +87,7 @@
         >
           <p>
             <v-icon :style="{color: process.gpu_color}">computer</v-icon>
-            <v-span :style="{color: process.gpu_color}">&nbsp;&nbsp;{{ process.user }}</v-span>
+            <v-span :style="{color: usersColors[process.user]}">&nbsp;&nbsp;{{ process.user }}</v-span>
           </p>
           <p class="command" v-html="process.command"></p>
         </v-list-tile>

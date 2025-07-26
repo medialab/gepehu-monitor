@@ -2,8 +2,6 @@
  * - add timeslider/selecter
  * - handle time period / zoom in urls
  * - handle dragged box zoom ?
- * - add a metric of processes/users
- * - think whether to keep or not full processed commands within sidebar
 */
 d3.formatDefaultLocale({
   "decimal": ",",
@@ -11,6 +9,7 @@ d3.formatDefaultLocale({
   "grouping": [3],
   "currency": [""],
 });
+
 d3.defaultColors = [
   "#9FA8DA", "#A5D6A7", "#CE93D8", "#FFE082",
   "#FFAB91", "#E0E0E0", "#40C4FF", "#F48FB1",
@@ -60,6 +59,7 @@ new Vue({
       {id: "n_processes",       selected: false, name: "Processes",    unit: "", color: "grey"}
     ],
     users: [],
+    usersColors: {},
     processes: {},
     hoverProcesses: [],
     hoverDate: null,
@@ -85,7 +85,7 @@ new Vue({
     },
     gpusDone: function(val) {
       if (val.length && val.length === this.gpusToDo.length)
-        this.draw();
+        this.prepareData();
     }
   },
   mounted: function() {
@@ -117,6 +117,7 @@ new Vue({
       if (!this.metricsChoices.length) {
         this.toggleMetric("usage_percent", true);
         this.toggleMetric("memory_percent", true);
+        this.toggleMetric("n_processes", true);
       }
       window.addEventListener("hashchange", this.readUrl);
       window.addEventListener("resize", this.draw);
@@ -186,7 +187,6 @@ new Vue({
                 gpu_index: gpu.index,
                 gpu_color: gpu.color,
                 user: d.users[i],
-                user_color: d3.defaultColors[users.indexOf(d.users[i])],
                 command: p
               });
             });
@@ -196,6 +196,20 @@ new Vue({
           this.gpusDone.push(gpu.id);
         });
       });
+    },
+    prepareData: function() {
+      this.users.sort();
+      this.gpus.forEach(gpu =>
+        gpu.rows.forEach(row =>
+          this.users.forEach(user =>
+            row["processes_by_" + user] = row.users.filter(u => u === user).length;
+          );
+        );
+      );
+      this.users.forEach((user, idx) =>
+        this.usersColors[user] = d3.defaultColors[idx + this.gpus.length]
+      );
+      this.draw();
     },
     draw: function() {
       if (!this.gpusChoices.length || !this.gpusDone.length || this.gpusToDo.length != this.gpusDone.length) return;
@@ -246,15 +260,23 @@ new Vue({
 
       // Compute X range
       var xScale = d3.scaleTime().range([0, width]).domain([start, end]),
-        xPosition = key => function(d) { return xScale(d3.min([end, d3.max([start, d[key] ])])); },
-        xWidth = function(d) { return xPosition("datetime")(d) - xPosition("prevDatetime")(d); };
+        xPosition = key => function(d) {
+          return xScale(d3.min([
+            end,
+            d3.max([start, d.data ? d.data[key] : d[key]])
+          ]));
+        },
+        xWidth = function(d) {
+          return xPosition("datetime")(d) - xPosition("prevDatetime")(d);
+        };
 
       // Prepare aggregated data
       var datasets = []
       if (self.aggregateGPUs && self.gpusChoices.length > 1) {
         var aggregatedGPU = [];
         for (var rowIdx = 0; rowIdx < self.gpus[0].rows.length; rowIdx++) {
-          aggregatedGPU.push({
+          row = {
+            raw_datetime: self.gpus[0].rows[rowIdx].raw_datetime,
             datetime: self.gpus[0].rows[rowIdx].datetime,
             prevDatetime: self.gpus[0].rows[rowIdx].prevDatetime,
             usage_percent: d3.mean(self.gpusChoices.map(idx => self.gpus[idx].rows[rowIdx].usage_percent)),
@@ -264,7 +286,11 @@ new Vue({
             temperature: d3.mean(self.gpusChoices.map(idx => self.gpus[idx].rows[rowIdx].temperature)),
             fan_speed_percent: d3.mean(self.gpusChoices.map(idx => self.gpus[idx].rows[rowIdx].fan_speed_percent)),
             n_processes: d3.sum(self.gpusChoices.map(idx => self.gpus[idx].rows[rowIdx].n_processes))
-          });
+          };
+          self.users.forEach(user =>
+            row["processes_by_" + user] = d3.sum(self.gpusChoices.map(idx => self.gpus[idx].rows[rowIdx]["processes_by_" + user]));
+          );
+          aggregatedGPU.push(row);
         }
         datasets.push(aggregatedGPU);
       } else {
@@ -286,7 +312,7 @@ new Vue({
         });
         yMax *= 1.08;
         var yScale = d3.scaleLinear().range([height, 0]).domain([yMin, yMax]);
-    
+
         datasets.forEach((rows, gpu_idx) => {
 
           // Filter zoomed out data
@@ -298,28 +324,46 @@ new Vue({
   
           var g = svg.append("g")
             .attr("transform", "translate(" + (margin.left + gpu_idx * (width + margin.horiz)) + "," + (margin.top + metric_idx * (height + margin.vert)) + ")");
+
+          if (metricChoice === "n_processes") {
+            g.append("g")
+              .selectAll("users")
+              .data(d3.stack()
+                .keys(self.users.map(u => "processes_by_" + u))
+                .value((d, key) => d[key])
+                (data)
+              ).enter().append("path")
+                .attr("fill", d => self.usersColors[self.users[d.index]])
+                .attr("d", d3.area()
+                  .x(xPosition("datetime"))
+                  .y0(d => yScale(d[0]))
+                  .y1(d => yScale(d[1]))
+                );
+
+          } else {
+
+            g.append("path")
+              .datum(data)
+              .attr("class", "line")
+              .attr("fill", "none")
+              .attr("stroke", metric.color)
+              .attr("stroke-width", 1)
+              .attr("d", d3.line()
+                .x(function(d) { return xScale(d.datetime); })
+                .y(function(d) { return yScale(d[metricChoice]); })
+              );
   
-          // Draw Filled plot using line + area
-          g.append("path")
-            .datum(data)
-            .attr("class", "line")
-            .attr("fill", "none")
-            .attr("stroke", metric.color)
-            .attr("stroke-width", 1)
-            .attr("d", d3.line()
-              .x(function(d) { return xScale(d.datetime); })
-              .y(function(d) { return yScale(d[metricChoice]); })
-            );
-          g.append("path")
-            .datum(data)
-            .attr("class", "area")
-            .attr("fill", metric.color)
-            .attr("fill-opacity", 0.25)
-            .attr("d", d3.area()
-              .x(function(d) { return xScale(d.datetime); })
-              .y0((height))
-              .y1(function(d) { return yScale(d[metricChoice]); })
-            );
+            g.append("path")
+              .datum(data)
+              .attr("class", "area")
+              .attr("fill", metric.color)
+              .attr("fill-opacity", 0.25)
+              .attr("d", d3.area()
+                .x(function(d) { return xScale(d.datetime); })
+                .y0((height))
+                .y1(function(d) { return yScale(d[metricChoice]); })
+              );
+          }
     
           // Draw Y axis
           var yAxis = d3.axisRight(yScale)
