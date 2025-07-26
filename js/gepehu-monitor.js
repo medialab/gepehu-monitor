@@ -122,7 +122,7 @@ new Vue({
       window.addEventListener("hashchange", this.readUrl);
       window.addEventListener("resize", this.draw);
       this.downloadData();
-      setInterval(this.downloadData, 20_000);
+      setInterval(this.downloadData, 60_000);
     },
     readUrl: function(init) {
       var self = this,
@@ -201,10 +201,10 @@ new Vue({
       this.users.sort();
       this.gpus.forEach(gpu =>
         gpu.rows.forEach(row =>
-          this.users.forEach(user =>
-            row["processes_by_" + user] = row.users.filter(u => u === user).length;
-          );
-        );
+          this.users.forEach(user => {
+            row["processes_by_" + user] = row.users.filter(u => (u === user)).length;
+          })
+        )
       );
       this.users.forEach((user, idx) =>
         this.usersColors[user] = d3.defaultColors[idx + this.gpus.length]
@@ -287,9 +287,9 @@ new Vue({
             fan_speed_percent: d3.mean(self.gpusChoices.map(idx => self.gpus[idx].rows[rowIdx].fan_speed_percent)),
             n_processes: d3.sum(self.gpusChoices.map(idx => self.gpus[idx].rows[rowIdx].n_processes))
           };
-          self.users.forEach(user =>
+          self.users.forEach(user => {
             row["processes_by_" + user] = d3.sum(self.gpusChoices.map(idx => self.gpus[idx].rows[rowIdx]["processes_by_" + user]));
-          );
+          });
           aggregatedGPU.push(row);
         }
         datasets.push(aggregatedGPU);
@@ -430,9 +430,10 @@ new Vue({
         });
       });
       this.hoverProcesses = (this.processes[d.raw_datetime] || []).filter(p => ~this.gpusChoices.indexOf(p.gpu_index)).sort((a, b) => a.gpu.localeCompare(b.gpu));
+      var boxHeight = 45 + 21 * this.metricsChoices.length;
       d3.select(".tooltipBox")
       .style("left", d3.event.pageX - 120 + "px")
-      .style("top", d3.event.pageY + 20 + "px")
+      .style("top", d3.event.pageY + (window.innerHeight - d3.event.pageY > (30 + boxHeight) ? 30 : -(30 + boxHeight)) + "px")
       .style("display", "block");
     },
     clearTooltip: function(d, i) {
