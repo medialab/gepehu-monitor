@@ -1,6 +1,10 @@
 html {
   overflow: hidden;
 }
+body {
+  background-color: #303030;
+  color: #303030;
+}
 #loader {
   position: fixed;
   top: calc(50% - 30px);
@@ -115,6 +119,7 @@ aside {
 .svg {
   overflow: hidden;
   display: grid;
+  height: 6000px;
 }
 .axis path, .axis line {
   stroke: #888;
@@ -170,4 +175,10 @@ rect.tooltip {
 }
 .application--dark .list i.icon {
   margin-right: 10px!important;
+}
+.aggregate {
+  font-size: 14px;
+  background-color: lightgrey;
+  top: 20px;
+  left: 40px;
 }

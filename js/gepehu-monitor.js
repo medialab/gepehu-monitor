@@ -1,4 +1,6 @@
 /* TODO
+ * - when refresh, do not redraw if zoomed not on endtime
+ * - tooltipboxes for whole screen drawn first
  * - add timeslider/selecter
  * - handle time period / zoom in urls
  * - handle dragged box zoom ?
@@ -125,13 +127,12 @@ new Vue({
       setInterval(this.downloadData, 60_000);
     },
     readUrl: function(init) {
-      var self = this,
-        url = window.location.hash.slice(1);
+      var url = window.location.hash.slice(1);
       if (url && ~url.indexOf("&")) url.split("&").forEach(urlPiece => {
         var [key, values] = urlPiece.split("=");
-        if (key == "gpus" && values != "") values.split(",").forEach(v => self.toggleGPU(parseInt(v), true));
-        else if (key == "metrics" && values != "") values.split(",").forEach(v => self.toggleMetric(v, true));
-        else if (key == "aggregated") self.aggregateGPUs = (values === "true");
+        if (key == "gpus" && values != "") values.split(",").forEach(v => this.toggleGPU(parseInt(v), true));
+        else if (key == "metrics" && values != "") values.split(",").forEach(v => this.toggleMetric(v, true));
+        else if (key == "aggregated") this.aggregateGPUs = (values === "true");
       });
     },
     toggleGPU: function(idx, force) {

@@ -11,7 +11,7 @@
   <div id="dashboard"><v-app dark toolbar>
     <aside class="navigation-drawer navigation-drawer--absolute navigation-drawer--clipped navigation-drawer--is-booted navigation-drawer--is-mobile navigation-drawer--open navigation-drawer--permanent">
       <v-list>
-        <v-subheader class="mt-2 grey--text">GPU<span class="lower">s</span></v-subheader>
+        <v-subheader class="mt-2">GPU<span class="lower">s</span></v-subheader>
 
         <v-list-tile
           v-for="(item, index) in gpus"
@@ -55,7 +55,7 @@
       </v-list>
 
       <v-list>
-        <v-subheader class="mt-2 grey--text">Metrics</v-subheader>
+        <v-subheader class="mt-2">Metrics</v-subheader>
         <v-list-tile
           v-for="item in metrics"
           :key="item.id"
@@ -79,8 +79,8 @@
         </v-list-tile>
       </v-list>
 
-      <v-subheader v-if="hoverDate" class="mt-2 grey--text" style="margin-top: 35px!important">PROCESSES RUNNING ({{ hoverDate }})</v-subheader>
       <v-list v-if="hoverDate" class="processes">
+        <v-subheader v-if="hoverDate" class="mt-2">PROCESSES RUNNING ({{ hoverDate }})</v-subheader>
         <v-list-tile
           v-for="process in hoverProcesses"
           class="process"
@@ -107,7 +107,7 @@
       <center id="loader" v-if="loading">
         <img src="css/loader.gif" alt="loader" /><br/>
       </center>
-      <div class="svg" :style="{height: '6000px', opacity: 1 - loading, display: gpusChoices.length ? 'block' : 'none'}">
+      <div class="svg" :style="{opacity: 1 - loading, display: gpusChoices.length ? 'block' : 'none'}">
         <div class="legende">
           <div
             v-for="item in gpus"
@@ -121,8 +121,7 @@
           </div>
           <div
             v-if="aggregateGPUs && gpusChoices.length > 1"
-            class="btn btn-raised theme--light"
-            style="font-size: 14px; background-color: lightgrey; top: 20px; left: 40px"
+            class="aggregate btn btn-raised theme--light"
           >
             <div class="">
               <span>{{ gpusChoices.length }} GPU<span class="lower">s</span>
