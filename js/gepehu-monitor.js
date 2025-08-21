@@ -542,6 +542,7 @@ new Vue({
       }, 50);
     },
     resetZoom: function() {
+      if (!this.minDate && !this.maxDate) return;
       this.minDate = null;
       this.maxDate = null;
       if (!this.loading) this.loading = 0.2;
