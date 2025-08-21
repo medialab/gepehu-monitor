@@ -4,6 +4,7 @@ html {
 body {
   background-color: #303030;
   color: #303030;
+  user-select: none;
 }
 #loader {
   position: fixed;
@@ -128,6 +129,7 @@ aside {
   fill: #BBB;
   font-size: 14px;
   font-family: Roboto;
+  user-select: none;
 }
 .legende {
   position: relative;
@@ -135,9 +137,16 @@ aside {
 .legende .btn {
   position: absolute;
 }
-rect.tooltip {
-  fill: black;
+rect.mask {
   fill-opacity: 0;
+}
+rect.interactions {
+  cursor: crosshair;
+  fill-opacity: 0;
+}
+rect.brush {
+  fill: black;
+  fill-opacity: 0.25;
 }
 .tooltipBox {
   background: #444;
@@ -153,6 +162,7 @@ rect.tooltip {
   padding: 5px;
   font-size: 14px;
   z-index: 1000;
+  user-select: none;
 }
 .tooltipBox hr {
   margin-bottom: 8px;

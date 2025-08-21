@@ -1,9 +1,9 @@
 /* TODO
+ * - handle time period / zoom in urls
  * - when refresh, do not redraw if zoomed not on endtime
  * - tooltipboxes for whole screen drawn first
  * - add timeslider/selecter
- * - handle time period / zoom in urls
- * - handle dragged box zoom ?
+ * - use subprocess for processing data
 */
 d3.formatDefaultLocale({
   "decimal": ",",
@@ -51,6 +51,7 @@ new Vue({
     gpusToDo: [],
     gpusDone: [],
     aggregateGPUs: true,
+    aggregatedGPU: {},
     metrics: [
       {id: "usage_percent",     selected: false, name: "GPU",          unit: "%",  color: "deepskyblue"},
       {id: "memory_percent",    selected: false, name: "Memory use",   unit: "%",  color: "lawngreen"},
@@ -62,12 +63,17 @@ new Vue({
     ],
     users: [],
     usersColors: {},
+    //minutes: {},
     processes: {},
     hoverProcesses: [],
     hoverDate: null,
     hoverText: [],
-    hiddenLeft: 0,
-    hiddenRight: 0
+    svgX: 340,
+    gapX: 40,
+    brushing: null,
+    brushX: 0,
+    minDate: null,
+    maxDate: null
   },
   computed: {
     gpusChoices: function() {
@@ -104,7 +110,8 @@ new Vue({
           name: null,
           selected: false,
           color: d3.defaultColors[idx],
-          rows: []
+          rows: [],
+          rowsMap: {}
         });
       });
       init();
@@ -124,7 +131,7 @@ new Vue({
       window.addEventListener("hashchange", this.readUrl);
       window.addEventListener("resize", this.draw);
       this.downloadData();
-      setInterval(this.downloadData, 60_000);
+      setInterval(this.downloadData, 300_000);
     },
     readUrl: function(init) {
       var url = window.location.hash.slice(1);
@@ -145,7 +152,9 @@ new Vue({
       });
     },
     downloadData: function() {
+      if (this.brushing != null) return;
       var users = this.users,
+        //minutes = this.minutes,
         processes = this.processes,
         cacheBypass = new Date().getTime();
       if (this.gpusToDo.length) {
@@ -163,8 +172,10 @@ new Vue({
           var res = pako.ungzip(body, {to: "string"}),
             prevDatetime = null;
           gpu.rows = d3.csvParse(res, function(d, idx) {
-            d.raw_datetime = d.datetime;
             d.datetime = d3.datize(d.datetime);
+            d.minute = d.datetime.toISOString().slice(0,16);
+            //if (!minutes[d.minute])
+            //  minutes[d.minute] = true;
             d.prevDatetime = prevDatetime;
             prevDatetime = d.datetime;
             d.usage_percent = parseFloat(d.usage_percent) / 100;
@@ -178,12 +189,12 @@ new Vue({
               if (!~users.indexOf(u))
                 users.push(u);
             });
-            d.processes = d.processes.replace(/\//g, "/&#8203;").split("§").filter(x => x);
-            d.n_processes = d.processes.length;
-            d.processes.forEach((p, i) => {
-              if (!processes[d.raw_datetime])
-                processes[d.raw_datetime] = [];
-              processes[d.raw_datetime].push({
+            var row_processes = d.processes.replace(/\//g, "/&#8203;").split("§").filter(x => x);
+            d.n_processes = row_processes.length;
+            row_processes.forEach((p, i) => {
+              if (!processes[d.minute])
+                processes[d.minute] = [];
+              processes[d.minute].push({
                 gpu: d.gpu_name,
                 gpu_index: gpu.index,
                 gpu_color: gpu.color,
@@ -191,6 +202,7 @@ new Vue({
                 command: p
               });
             });
+            gpu.rowsMap[d.minute] = d;
             return d;
           });
           gpu.name = gpu.rows[0].gpu_name;
@@ -227,9 +239,9 @@ new Vue({
       this.extent = Math.round((fullEnd - fullStart) / 60_000);
 
       // Zoom in timeline
-      var start = new Date(fullStart.getTime() + this.hiddenLeft * 60_000),
-        end = new Date(fullEnd.getTime() - this.hiddenRight * 60_000);
-      this.curView = Math.round((end - start) / 60_000);
+      this.start = new Date(this.minDate || fullStart);
+      this.end = new Date(this.maxDate || fullEnd);
+      this.curView = Math.round((this.end - this.start) / 60_000);
 
       // Setup dimensions
       var nbPlots = this.aggregateGPUs ? 1 : this.gpusChoices.length,
@@ -237,8 +249,11 @@ new Vue({
         mainH = window.innerHeight - document.querySelector("nav").getBoundingClientRect().height,
         svgH = Math.max(140, mainH),
         svgW = window.innerWidth - document.querySelector("aside").getBoundingClientRect().width,
-        height = (svgH - margin.top - margin.bottom - (this.metricsChoices.length - 1) * margin.vert) / this.metricsChoices.length,
-        width = (svgW - margin.left - margin.right - (nbPlots - 1) * margin.horiz) / nbPlots;
+        height = (svgH - margin.top - margin.bottom - (this.metricsChoices.length - 1) * margin.vert) / this.metricsChoices.length;
+      this.width = (svgW - margin.left - margin.right - (nbPlots - 1) * margin.horiz) / nbPlots;
+      this.svgX = document.querySelector(".svg").getBoundingClientRect().x + margin.left;
+      this.gapX = this.width + margin.horiz;
+
 
       // Prepare svg
       var svg = d3.select(".svg")
@@ -246,10 +261,10 @@ new Vue({
       .append("svg")
         .attr("width", svgW)
         .attr("height", svgH);
-  
+
       // Position legend
       this.gpusChoices.forEach(idx => {
-        var xPos = margin.left + idx * (width + margin.horiz),
+        var xPos = margin.left + idx * (this.width + margin.horiz),
           yPos = margin.top;
         self.gpus[idx].style = {
           "font-size": "14px",
@@ -260,11 +275,11 @@ new Vue({
       });
 
       // Compute X range
-      var xScale = d3.scaleTime().range([0, width]).domain([start, end]),
-        xPosition = key => function(d) {
-          return xScale(d3.min([
-            end,
-            d3.max([start, d.data ? d.data[key] : d[key]])
+      this.xScale = d3.scaleTime().range([0, this.width]).domain([this.start, this.end]);
+      var xPosition = key => function(d) {
+          return self.xScale(d3.min([
+            self.end,
+            d3.max([self.start, d.data ? d.data[key] : d[key]])
           ]));
         },
         xWidth = function(d) {
@@ -274,10 +289,10 @@ new Vue({
       // Prepare aggregated data
       var datasets = []
       if (self.aggregateGPUs && self.gpusChoices.length > 1) {
-        var aggregatedGPU = [];
+        this.aggregatedGPU = {rows: [], rowsMap: []};
         for (var rowIdx = 0; rowIdx < self.gpus[0].rows.length; rowIdx++) {
           row = {
-            raw_datetime: self.gpus[0].rows[rowIdx].raw_datetime,
+            minute: self.gpus[0].rows[rowIdx].minute,
             datetime: self.gpus[0].rows[rowIdx].datetime,
             prevDatetime: self.gpus[0].rows[rowIdx].prevDatetime,
             usage_percent: d3.mean(self.gpusChoices.map(idx => self.gpus[idx].rows[rowIdx].usage_percent)),
@@ -291,9 +306,10 @@ new Vue({
           self.users.forEach(user => {
             row["processes_by_" + user] = d3.sum(self.gpusChoices.map(idx => self.gpus[idx].rows[rowIdx]["processes_by_" + user]));
           });
-          aggregatedGPU.push(row);
+          this.aggregatedGPU.rows.push(row);
+          this.aggregatedGPU.rowsMap[row.minute] = row;
         }
-        datasets.push(aggregatedGPU);
+        datasets.push(this.aggregatedGPU.rows);
       } else {
         self.gpusChoices.forEach((idx) => {
           datasets.push(self.gpus[idx].rows);
@@ -319,12 +335,12 @@ new Vue({
           // Filter zoomed out data
           var data = [];
           rows.forEach(function(d) {
-            if (d.datetime < start || d.datetime > end) return;
+            if (d.datetime < self.start || d.datetime > self.end) return;
             data.push(d);
           });
   
           var g = svg.append("g")
-            .attr("transform", "translate(" + (margin.left + gpu_idx * (width + margin.horiz)) + "," + (margin.top + metric_idx * (height + margin.vert)) + ")");
+            .attr("transform", "translate(" + (margin.left + gpu_idx * (this.width + margin.horiz)) + "," + (margin.top + metric_idx * (height + margin.vert)) + ")");
 
           if (metricChoice === "n_processes") {
             g.append("g")
@@ -350,7 +366,7 @@ new Vue({
               .attr("stroke", metric.color)
               .attr("stroke-width", 1)
               .attr("d", d3.line()
-                .x(function(d) { return xScale(d.datetime); })
+                .x(function(d) { return self.xScale(d.datetime); })
                 .y(function(d) { return yScale(d[metricChoice]); })
               );
   
@@ -360,7 +376,7 @@ new Vue({
               .attr("fill", metric.color)
               .attr("fill-opacity", 0.25)
               .attr("d", d3.area()
-                .x(function(d) { return xScale(d.datetime); })
+                .x(function(d) { return self.xScale(d.datetime); })
                 .y0((height))
                 .y1(function(d) { return yScale(d[metricChoice]); })
               );
@@ -376,16 +392,16 @@ new Vue({
 
           g.append("g")
             .attr("class", "axis axis--y")
-            .attr("transform", "translate(" + (width) + ", 0)")
+            .attr("transform", "translate(" + (this.width) + ", 0)")
             .call(yAxis);
     
           // Draw X axis
-          var dates = d3.timeDay.range(start, end),
-            xAxis = d3.axisBottom(xScale)
+          var dates = d3.timeDay.range(self.start, self.end),
+            xAxis = d3.axisBottom(self.xScale)
             .tickFormat(d3.timeFormat("%d %b %y"))
             .tickSizeOuter(0);
-          if (width / dates.length < 175)
-            xAxis.ticks(width / 175);
+          if (this.width / dates.length < 175)
+            xAxis.ticks(this.width / 175);
           else xAxis.tickValues(dates);
 
           g.append("g")
@@ -393,33 +409,101 @@ new Vue({
             .attr("transform", "translate(0, " + (height) + ")")
             .call(xAxis);
     
-          // Draw tooltips surfaces
-          g.append("g")
-            .selectAll("rect.tooltip")
-            .data(data.slice(1)).enter().append("rect")
-              .classed("tooltip", true)
-              .attr("did", function(d, i) { return i; })
-              .attr("x", xPosition("prevDatetime"))
-              .attr("y", yScale.range()[1])
-              .attr("width", xWidth)
-              .attr("height", yScale.range()[0] - yScale.range()[1])
-              .on("mouseover", self.hover)
-              .on("mousemove", self.displayTooltip)
-              .on("mouseleave", self.clearTooltip)
-              .on("wheel", self.zoom)
-              .on("dblclick", self.zoom);
+          // Draw hoverable and brushable surface
+          var interactions = g.append("g");
+
+          interactions.append("rect")
+            .attr("class", "mask")
+            .attr("gpu_idx", gpu_idx)
+            .attr("x", -margin.left)
+            .attr("y", -margin.top)
+            .attr("width", margin.left + this.width + margin.right + margin.horiz)
+            .attr("height", margin.top + height + margin.bottom + margin.vert)
+            .on("mouseleave", self.clearTooltip)
+            .on("mouseup", self.stopBrush);
+
+          interactions.append("rect")
+            .attr("class", "brush")
+            .attr("x", 0)
+            .attr("y", 0)
+            .attr("width", 0)
+            .attr("height", height);
+
+          interactions.append("rect")
+            .attr("class", "interactions")
+            .attr("gpu_idx", gpu_idx)
+            .attr("x", 0)
+            .attr("y", 0)
+            .attr("width", this.width)
+            .attr("height", height)
+            .on("mouseover", self.hover)
+            .on("mouseleave", self.clearTooltip)
+            .on("mousemove", self.hover)
+            .on("mousedown", self.startBrush)
+            .on("mouseup", self.stopBrush)
+            .on("dblclick", self.resetZoom);
+
         });
       });
 
       this.clearTooltip();
       this.loading = 0;
     },
-    hover: function(d, i) {
-      d3.selectAll('rect[did="' + i + '"]').style("fill-opacity", 1);
+    clearTooltip: function() {
+      this.hoverDate = null;
+      this.hoverText = null;
+      this.hoverProcesses = [];
+
+      d3.select(".tooltipBox").style("display", "none");
+
+      if (this.brushing == null)
+        d3.selectAll("rect.brush").attr("width", 0);
     },
-    displayTooltip: function(d, i, rects) {
+    hover: function() {
       if (!d3.event) return;
-      this.hoverDate = d3.timeFormat("%d %b %y %H:%M")(d.datetime);
+
+      var gpu_idx = d3.event.target.attributes.gpu_idx.value,
+        brushX = d3.event.pageX - this.svgX - gpu_idx * this.gapX;
+
+      if (this.brushing != null) {
+        // Display brush
+        var width;
+        if (this.brushing === gpu_idx) {
+          width = brushX - this.brushX;
+          d3.selectAll("rect.interactions").style("cursor", (width >= 0 ? "e" : "w") + "-resize");
+        } else if (this.brushing < gpu_idx) {
+          width = this.width - this.brushX;
+          d3.selectAll("rect.interactions").style("cursor", "unset");
+        } else {
+          width = -this.brushX;
+          d3.selectAll("rect.interactions").style("cursor", "unset");
+        }
+
+        d3.selectAll("rect.brush")
+          .attr("x", width >= 0 ? this.brushX : this.brushX + width)
+          .attr("width", Math.abs(width));
+      } else {
+        // Display hover line
+        this.brushX = brushX;
+        d3.selectAll("rect.interactions").style("cursor", "crosshair");
+        d3.selectAll("rect.brush")
+          .attr("x", this.brushX)
+          .attr("width", 2);
+      }
+
+      // Display tooltip
+      var dat = this.xScale.invert(brushX),
+        minute = dat.toISOString().slice(0,16),
+      // TODO: find closest minute if (!this.minutes[minute])
+        row = (this.aggregateGPUs ? this.aggregatedGPU : this.gpus[gpu_idx]).rowsMap[minute];
+
+      var boxHeight = 45 + 21 * this.metricsChoices.length;
+      d3.select(".tooltipBox")
+        .style("left", d3.event.pageX - 120 + "px")
+        .style("top", d3.event.pageY + (window.innerHeight - d3.event.pageY > (30 + boxHeight) ? 30 : -(30 + boxHeight)) + "px")
+        .style("display", "block");
+
+      this.hoverDate = d3.timeFormat("%d %b %y %H:%M")(dat);
       this.hoverText = [];
       this.metricsChoices.forEach((metricChoice, metric_idx) => {
         var metric = this.metrics.filter(x => x.id == metricChoice)[0],
@@ -427,39 +511,44 @@ new Vue({
         this.hoverText.push({
           metric: metric.name,
           color: metric.color,
-          value: d3[(percent ? "percent" : "int") + "Format"](d[metricChoice]) + (percent ? "" : " " + metric.unit)
+          value: (row ? d3[(percent ? "percent" : "int") + "Format"](row[metricChoice]) + (percent ? "" : " " + metric.unit) : "n/a")
         });
       });
-      this.hoverProcesses = (this.processes[d.raw_datetime] || []).filter(p => ~this.gpusChoices.indexOf(p.gpu_index)).sort((a, b) => a.gpu.localeCompare(b.gpu));
-      var boxHeight = 45 + 21 * this.metricsChoices.length;
-      d3.select(".tooltipBox")
-      .style("left", d3.event.pageX - 120 + "px")
-      .style("top", d3.event.pageY + (window.innerHeight - d3.event.pageY > (30 + boxHeight) ? 30 : -(30 + boxHeight)) + "px")
-      .style("display", "block");
+
+      this.hoverProcesses = (this.processes[minute] || []).filter(p => ~this.gpusChoices.indexOf(p.gpu_index)).sort((a, b) => a.gpu.localeCompare(b.gpu));
     },
-    clearTooltip: function(d, i) {
-      this.hoverProcesses = [];
-      this.hoverDate = null;
-      this.hoverText = null;
-      if (i) d3.selectAll('rect[did="' + i + '"]').style("fill-opacity", 0);
-      d3.select(".tooltipBox").style("display", "none");
+    startBrush: function() {
+      this.brushing = d3.event.target.attributes.gpu_idx.value;
+      this.brushX = d3.event.pageX - this.svgX - this.brushing * this.gapX;
+      d3.selectAll("rect.interactions").style("cursor", "e-resize");
     },
-    zoom: function(d, i, rects) {
-      var direction = (d3.event.deltaY && d3.event.deltaY > 0 ? -1 : 1),
-        minutes = this.curView / 3,
-        gauge = (i + 1) / rects.length,
-        gaugeLeft = (gauge > 0.05 ? gauge : 0),
-        gaugeRight = (gauge < 0.95 ? 1 - gauge : 0);
-      if ((direction == 1 && this.extent - this.hiddenLeft - this.hiddenRight < 1_440) || (direction == -1 && this.hiddenLeft + this.hiddenRight == 0)) return;
-      this.hiddenLeft += Math.floor(gaugeLeft * minutes * direction);
-      this.hiddenRight += Math.floor(gaugeRight * minutes * direction);
-      if (this.hiddenLeft < 0) this.hiddenLeft = 0;
-      if (this.hiddenRight < 0) this.hiddenRight = 0;
+    stopBrush: function() {
+      var brush = document.querySelector("rect.brush"),
+        x = parseInt(brush.getAttribute("x"));
+        width = parseInt(brush.getAttribute("width"));
+      if (width < 5) {
+        this.brushing = null;
+        return;
+      }
+      this.minDate = this.xScale.invert(x),
+      this.maxDate = this.xScale.invert(x + parseInt(brush.getAttribute("width")));
+      if (!this.loading) this.loading = 0.2;
+      setTimeout(() => {
+        d3.selectAll("rect.interactions").style("cursor", "crosshair");
+        d3.selectAll("rect.brush").attr("width", 0);
+        this.brushing = null;
+        this.reallyDraw();
+        setTimeout(() => this.hover(), 10);
+      }, 50);
+    },
+    resetZoom: function() {
+      this.minDate = null;
+      this.maxDate = null;
       if (!this.loading) this.loading = 0.2;
       setTimeout(() => {
         this.reallyDraw();
-        setTimeout(() => this.displayTooltip(d, i, rects), 10);
-      }, 0);
+        setTimeout(() => this.hover(), 10);
+      }, 50);
     }
   }
 });
