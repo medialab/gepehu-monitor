@@ -1,6 +1,5 @@
 /* TODO
  * - handle time period / zoom in urls
- * - when refresh, do not redraw if zoomed not on endtime
  * - tooltipboxes for whole screen drawn first
  * - add timeslider/selecter
  * - use subprocess for processing data
@@ -89,7 +88,7 @@ new Vue({
   watch: {
     url: function(val) {
       window.location.hash = val;
-      this.draw();
+      this.draw(true);
     },
     gpusDone: function(val) {
       if (val.length && val.length === this.gpusToDo.length)
@@ -129,7 +128,7 @@ new Vue({
         this.toggleMetric("n_processes", true);
       }
       window.addEventListener("hashchange", this.readUrl);
-      window.addEventListener("resize", this.draw);
+      window.addEventListener("resize", () => this.draw(true));
       this.downloadData();
       setInterval(this.downloadData, 300_000);
     },
@@ -222,10 +221,11 @@ new Vue({
       this.users.forEach((user, idx) =>
         this.usersColors[user] = d3.defaultColors[idx + this.gpus.length]
       );
-      this.draw();
+      this.draw(this.loading);
     },
-    draw: function() {
+    draw: function(force) {
       if (!this.gpusChoices.length || !this.gpusDone.length || this.gpusToDo.length != this.gpusDone.length) return;
+      if (this.maxDate && !force) return;
       if (!this.loading) this.loading = 0.5;
       setTimeout(this.reallyDraw, 50);
     },
