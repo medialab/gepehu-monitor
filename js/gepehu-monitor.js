@@ -1,5 +1,6 @@
 /* TODO
- * - add timeslider/selecter
+ * - fix regular brush oversizing when using calendar brush
+ * - improve calendar by adding margins to allow border selection cases
  * - fix url datetimes timezoned
  * - use subprocess for processing data
  * - switch ticks to hours when less than a day
@@ -59,7 +60,8 @@ new Vue({
     brushing: null,
     brushX: 0,
     minDate: null,
-    maxDate: null
+    maxDate: null,
+    calendarBrushing: false
   },
   computed: {
     // List of user toggled GPUs
@@ -124,6 +126,12 @@ new Vue({
       if (!this.gpusChoices.length)
         for (var i = 0; i < this.gpus.length; i++)
           this.toggleGPU(i, true);
+      // Defaults to only the last 15 days
+      if (!this.minDate && !this.maxDate) {
+        var start = new Date();
+        start.setDate(start.getDate() - 15);
+        this.minDate = start;
+      }
 
       // Follow URL changes to refresh plots
       window.addEventListener("hashchange", this.readUrl);
@@ -267,7 +275,7 @@ new Vue({
     // Actually draw plots
     reallyDraw: function() {
       // Remove previous plots
-      d3.select(".svg").selectAll("svg").remove();
+      d3.selectAll("svg").remove();
 
       // Setup current time window
       this.start = new Date(this.minDate || this.fullStart);
@@ -286,10 +294,10 @@ new Vue({
 
       // Prepare svg
       var svg = d3.select(".svg")
-      .style("height", mainH + "px")
-      .append("svg")
-        .attr("width", svgW)
-        .attr("height", svgH);
+        .style("height", mainH + "px")
+        .append("svg")
+          .attr("width", svgW)
+          .attr("height", svgH);
 
       // Position GPU labels on each column
       this.gpusChoices.forEach(idx => {
@@ -305,10 +313,60 @@ new Vue({
 
       // Compute X range
       this.xScale = d3.scaleTime().range([0, this.width]).domain([this.start, this.end]);
-      var xPosition = key =>
-        ((d) => this.xScale(d3.min(
-          [this.end, d3.max([this.start, d.data ? d.data[key] : d[key]])]
-        )));
+      var xPosition = (d) => this.xScale(d3.min(
+        [this.end, d3.max([this.start, d.data ? d.data["datetime"] : d[key]])]
+      ));
+
+      // Prepare X axis
+      var dates = d3.timeDay.range(this.start, this.end),
+        xAxis = d3.axisBottom(this.xScale)
+        .tickFormat(d3.timeFormat("%d %b %y"))
+        .tickSizeOuter(0);
+      if (this.width / dates.length < 175)
+        xAxis.ticks(this.width / 175);
+      else xAxis.tickValues(dates);
+
+      // Draw zoom-brushable calendar
+      this.calendarWidth = svgW - margin.left - margin.right;
+      this.calendarScale = d3.scaleTime().range([0, this.calendarWidth]).domain([this.fullStart, this.fullEnd]);
+
+      var calendarDates = d3.timeDay.range(this.fullStart, this.fullEnd),
+        calendar = d3.select(".calendar")
+          .style("margin-left", margin.left + "px")
+          .style("margin-right", margin.right + "px")
+          .append("svg")
+            .attr("width", this.calendarWidth)
+            .attr("height", 32),
+        calendarAxis = d3.axisTop(this.calendarScale)
+          .tickFormat(d3.timeFormat("%d %b %y"))
+          .tickSizeOuter(0);
+
+      if (this.calendarWidth / calendarDates.length < 175)
+        xAxis.ticks(this.calendarWidth / 175);
+      else xAxis.tickValues(dates);
+      calendar.append("g")
+        .attr("class", "calendar-axis")
+        .attr("transform", "translate(0, 28)")
+        .call(calendarAxis);
+
+      calendar.append("rect")
+        .attr("class", "calendar-brush")
+        .attr("x", this.calendarScale(this.start))
+        .attr("y", 1)
+        .attr("width", this.calendarScale(this.end) - this.calendarScale(this.start))
+        .attr("height", 30);
+
+      calendar.append("rect")
+        .attr("class", "interactions")
+        .attr("x", 0)
+        .attr("y", 0)
+        .attr("width", this.calendarWidth)
+        .attr("height", 32)
+        .on("mouseover", this.hoverCalendar)
+        .on("mousedown", this.startCalendarBrush)
+        .on("mousemove", this.hoverCalendar)
+        .on("mouseup", this.stopCalendarBrush)
+        .on("dblclick", this.resetZoom);
 
       // Prepare datasets to plot
       var datasets = []
@@ -376,7 +434,7 @@ new Vue({
               ).enter().append("path")
                 .attr("fill", d => this.usersColors[this.users[d.index]])
                 .attr("d", d3.area()
-                  .x(xPosition("datetime"))
+                  .x(xPosition)
                   .y0(d => yScale(d[0]))
                   .y1(d => yScale(d[1]))
                 );
@@ -420,13 +478,6 @@ new Vue({
             .call(yAxis);
 
           // Draw X axis
-          var dates = d3.timeDay.range(this.start, this.end),
-            xAxis = d3.axisBottom(this.xScale)
-            .tickFormat(d3.timeFormat("%d %b %y"))
-            .tickSizeOuter(0);
-          if (this.width / dates.length < 175)
-            xAxis.ticks(this.width / 175);
-          else xAxis.tickValues(dates);
           g.append("g")
             .attr("class", "axis axis--x")
             .attr("transform", "translate(0, " + (height) + ")")
@@ -491,15 +542,21 @@ new Vue({
           else if (width < -this.brushX)
             width = -this.brushX;
           d3.selectAll("rect.interactions").style("cursor", (width >= 0 ? "e" : "w") + "-resize");
-        } else if (this.brushing < gpu_idx) {
+        } else if (this.brushing < gpu_idx)
           width = this.width - this.brushX;
-        } else {
-          width = -this.brushX;
-        }
+        else width = -this.brushX;
 
+        // Update brush position on all plots
         d3.selectAll("rect.brush")
           .attr("x", width >= 0 ? this.brushX : this.brushX + width)
           .attr("width", Math.abs(width));
+
+        // Update calendar brush position
+        var calBrushX = this.calendarScale(this.xScale.invert(this.brushX)),
+          calWidth = this.calendarScale(this.xScale.invert(this.brushX + width)) - calBrushX;
+        d3.select("rect.calendar-brush")
+          .attr("x", calWidth >= 0 ? calBrushX : calBrushX + calWidth)
+          .attr("width", Math.abs(calWidth));
 
       // Display hover line otherwise
       } else if (brushX >= 0 && brushX <= this.width) {
@@ -552,9 +609,11 @@ new Vue({
       // Evaluate zoom period datetimes from recorded positions
       var minDate = this.xScale.invert(x);
       if (minDate <= this.start)
-        minDate = null;
+        minDate = this.start;
       var maxDate = this.xScale.invert(x + parseInt(brush.getAttribute("width")));
       if (maxDate >= this.end)
+        maxDate = this.end;
+      if (maxDate >= this.fullEnd)
         maxDate = null;
 
       // Do not zoom when selection is too small (<5px) or too short (<30min)
@@ -571,11 +630,95 @@ new Vue({
       d3.selectAll("rect.interactions").style("cursor", x > 0 && x < this.width ? "crosshair" : "unset");
       this.brushing = null;
     },
+    // Initiate zoom-brushing from calendar bar on click down
+    startCalendarBrush: function() {
+      this.calendarBrushing = true;
+      var calBrush = document.querySelector("rect.calendar-brush"),
+        x = parseInt(calBrush.getAttribute("x")),
+        w = parseInt(calBrush.getAttribute("width")),
+        brushX = d3.event.pageX - this.svgX;
+      // Adjust brush zone from its left edge if the mouse is close to it
+      if (Math.abs(brushX - x) < 8)
+        this.calendarBrushX = x + w;
+      // Adjust brush zone from its right edge if the mouse is close to it
+      else if (Math.abs(brushX - x - w) < 8)
+        this.calendarBrushX = x;
+      // Or initiate a new brush zone otherwise
+      else this.calendarBrushX = brushX;
+      d3.selectAll("rect.interactions").style("cursor", "e-resize");
+    },
+    // Handle movements when zoom-brushing from calendar bar
+    hoverCalendar: function() {
+      if (!d3.event) return;
+
+      var brushX = d3.event.pageX - this.svgX;
+
+      // Handle movements while zoom-brushing
+      if (this.calendarBrushing) {
+        var width = brushX - this.calendarBrushX;
+        if (width > this.calendarWidth - this.calendarBrushX)
+          width = this.calendarWidth - this.calendarBrushX
+        else if (width < -this.calendarBrushX)
+          width = -this.calendarBrushX;
+        d3.selectAll("rect.interactions").style("cursor", (width >= 0 ? "e" : "w") + "-resize");
+
+        // Update calendar brush position
+        d3.select("rect.calendar-brush")
+          .attr("x", width >= 0 ? this.calendarBrushX : this.calendarBrushX + width)
+          .attr("width", Math.abs(width));
+
+        // Update brush position on all plots as well
+        var regBrushX = this.xScale(this.calendarScale.invert(this.calendarBrushX)),
+          regWidth = this.xScale(this.calendarScale.invert(this.calendarBrushX + width)) - regBrushX;
+        d3.selectAll("rect.brush")
+          .attr("x", regWidth >= 0 ? regBrushX : regBrushX + regWidth)
+          .attr("width", Math.abs(regWidth));
+
+      // Adjust cursor's icon otherwise when getting close to brush's edges
+      } else {
+        var calBrush = document.querySelector("rect.calendar-brush"),
+          x = parseInt(calBrush.getAttribute("x")),
+          w = parseInt(calBrush.getAttribute("width"));
+        if (Math.abs(brushX - x) < 8 || Math.abs(brushX - x - w) < 8) {
+          d3.selectAll("rect.interactions").style("cursor", "ew-resize");
+        } else {
+          d3.selectAll("rect.interactions").style("cursor", "crosshair");
+        }
+      }
+    },
+    // Complete zoom-brushing from calendar bar on click up
+    stopCalendarBrush: function() {
+      var brush = document.querySelector("rect.calendar-brush"),
+        x = parseInt(brush.getAttribute("x")),
+        width = parseInt(brush.getAttribute("width"));
+
+      // Evaluate zoom period datetimes from recorded positions
+      var minDate = this.calendarScale.invert(x);
+      if (minDate <= this.fullStart)
+        minDate = this.fullStart;
+      var maxDate = this.calendarScale.invert(x + parseInt(brush.getAttribute("width")));
+      if (maxDate >= this.fullEnd)
+        maxDate = null;
+
+      // Do not zoom when selection is too small (<5px) or too short (<30min)
+      var duration = (maxDate || this.fullEnd) - (minDate || this.fullStart);
+      if (width < 5 || duration < 1_800_000) {
+        d3.selectAll("rect.brush").attr("width", 2);
+      } else {
+        d3.selectAll("rect.brush").attr("width", 0);
+        if (!this.loading) this.loading = 0.2;
+        this.minDate = minDate;
+        this.maxDate = maxDate;
+      }
+
+      d3.selectAll("rect.interactions").style("cursor", x > 0 && x < this.width ? "crosshair" : "unset");
+      this.calendarBrushing = false;
+    },
     // Double click to reinitialize zoom to whole period
     resetZoom: function() {
-      if (!this.minDate && !this.maxDate) return;
+      if ((!this.minDate || this.mindate === this.fullStart) && !this.maxDate) return;
       if (!this.loading) this.loading = 0.2;
-      this.minDate = null;
+      this.minDate = this.fullStart;
       this.maxDate = null;
     }
   }

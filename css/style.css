@@ -6,6 +6,11 @@ body {
   color: #303030;
   user-select: none;
 }
+.toolbar__title {
+  font-family: monospace;
+  font-weight: bold;
+  font-size: 32px;
+}
 #loader {
   position: fixed;
   top: calc(50% - 30px);
@@ -61,9 +66,31 @@ aside {
 .process p {
   margin-bottom: 10px;
 }
+.calendar {
+  overflow: hidden;
+  height: 32px;
+  top: 15px;
+  background-color: #333;
+}
+.calendar-axis path {
+  stroke: none;
+}
+.calendar-axis line{
+  stroke: #666;
+}
+.calendar-axis text {
+  fill: #666;
+  font-size: 14px;
+  font-family: Roboto;
+  user-select: none;
+}
+rect.calendar-brush {
+  fill-opacity: 0.25;
+  stroke: #888;
+  filter: invert(0.5);
+}
 .svg {
   overflow: hidden;
-  display: grid;
   height: 6000px;
 }
 .legende {

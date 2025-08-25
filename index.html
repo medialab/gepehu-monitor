@@ -2,7 +2,7 @@
 <html>
  <head>
   <meta charset="UTF-8">
-  <title>gepehu history monitor</title>
+  <title>GPUse</title>
   <link href="css/roboto.css" rel="stylesheet">
   <link href="css/vuetify.min.css" rel="stylesheet">
   <link href="css/style.css" rel="stylesheet">
@@ -99,13 +99,14 @@
     </aside>
 
     <v-toolbar class="dark" fixed>
-      <v-toolbar-title>
-        <v-title>gepehu history monitor</v-title>
-      </v-toolbar-title>
-      <v-spacer></v-spacer>
       <a href="https://medialab.sciencespo.fr/" target="_blank">
         <img src="css/medialab.png" alt="médialab Sciences Po" height=35 />
       </a>
+      <v-toolbar-title>
+        <v-title>GPUse</v-title>
+      </v-toolbar-title>
+      <v-spacer></v-spacer>
+      <div class="calendar" :style="{opacity: 1 - loading, display: gpusChoices.length ? 'block' : 'none'}"></div>
     </v-toolbar>
 
     <main>
