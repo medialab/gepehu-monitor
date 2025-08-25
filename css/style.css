@@ -10,6 +10,7 @@ body {
   position: fixed;
   top: calc(50% - 30px);
   left: calc(50% + 140px);
+  z-index: 1000;
 }
 #loader img {
   border: 1px solid #444;
@@ -18,21 +19,9 @@ body {
 aside {
   height: 100%;
 }
-.switchoption .list__tile__content {
-  width: 40%;
-}
-.switchoption .list__tile__action {
-  width: 20%;
-}
-.switcher {
-  cursor: pointer;
-}
 .navigation-drawer--permanent.navigation-drawer--clipped {
   max-height: calc(100vh);
   overflow: hidden;
-}
-.btn--floating.btn--small .icon {
-  font-size: 30px;
 }
 .subheader {
   text-transform: uppercase;
@@ -40,19 +29,22 @@ aside {
   padding-bottom: 0;
   padding-top: 0;
 }
-.subheader b {
-  color: white;
-}
 .lower {
   text-transform: lowercase!important;
 }
+.switchoption .list__tile__content {
+  width: 40%;
+}
+.switcher {
+  cursor: pointer;
+}
+.radio-group {
+  width: 35px;
+  min-width: 35px;
+  max-width: 35px;
+}
 .unchecked {
   opacity: 0.3;
-}
-.amount {
-  font-family: "Lucida Console", monospace;
-  font-weight: bold;
-  white-space: nowrap;
 }
 .processes {
   display: flex;
@@ -69,58 +61,24 @@ aside {
 .process p {
   margin-bottom: 10px;
 }
-.input-group--disabled .input-group--selection-controls__ripple, .input-group--disabled .input-group--selection-controls__ripple:after {
-  cursor: default!important;
-}
-.input-group__input .input-group__prepend-icon, .input-group.unselected .input-group__append-icon {
-  color: white!important;
-}
-.input-group.unselected .input-group__append-icon {
-  opacity: 0.2!important;
-}
-.input-group--select.input-group--focused .input-group__append-icon {
-  transform: none!important;
-}
-.input-group:not(.unselected) .input-group__input .input-group__append-icon {
-  color: #f44336!important;
-}
-.input-group__details {
-  display: none!important;
-}
-.menu__content {
-  max-height: 500px!important;
-}
-.chip {
-  cursor: pointer;
-}
-.input-group--select .input-group__selections__comma {
-  font-size: 14px;
-  white-space: nowrap;
-}
-.list__tile--active, .input-group.input-group--focused:not(.unselected) .input-group__append-icon, .application--dark .input-group.input-group--dirty:not(.unselected) .input-group__selections__comma:not(.input-group__selections__comma--active) {
-  color: #f44336;
-}
-.unselected .list__tile--active, .unselected .input-group.input-group--focused .input-group__append-icon, .application--dark .unselected .input-group.input-group--dirty .input-group__selections__comma:not(.input-group__selections__comma--active), .input-group.unselected .input-group__selections__comma:not(.input-group__selections__comma--active) {
-  color: white!important;
-  opacity: 0.2!important;
-}
-.input-group.input-group--text-field:not(.input-group--single-line):not(.input-group--error).input-group--focused label {
-  color: white;
-}
-.radio-group {
-  width: 35px;
-  min-width: 35px;
-  max-width: 35px;
-}
-.application--dark .input-group.radio:not(.input-group--error) label {
-  font-size: 13px;
-  text-transform: capitalize;
-  margin-left: -5px
-}
 .svg {
   overflow: hidden;
   display: grid;
   height: 6000px;
+}
+.legende {
+  position: relative;
+  top: -15px;
+  left: -20px
+}
+.legende .btn {
+  position: absolute;
+}
+.aggregate {
+  font-size: 14px;
+  background-color: lightgrey;
+  top: 20px;
+  left: 40px;
 }
 .axis path, .axis line {
   stroke: #888;
@@ -130,15 +88,6 @@ aside {
   font-size: 14px;
   font-family: Roboto;
   user-select: none;
-}
-.legende {
-  position: relative;
-}
-.legende .btn {
-  position: absolute;
-}
-rect.mask {
-  fill-opacity: 0;
 }
 rect.interactions {
   cursor: crosshair;
@@ -161,7 +110,7 @@ rect.brush {
   left: 50%;
   padding: 5px;
   font-size: 14px;
-  z-index: 1000;
+  z-index: 100;
   user-select: none;
 }
 .tooltipBox hr {
@@ -175,20 +124,4 @@ rect.brush {
 }
 .tooltip-key {
   font-weight: bold;
-}
-.dialog a, .dialog a:visited {
-  color: grey;
-  text-decoration: none;
-}
-.dialog a:hover, .dialog a:visited:hover {
-  text-decoration: underline;
-}
-.application--dark .list i.icon {
-  margin-right: 10px!important;
-}
-.aggregate {
-  font-size: 14px;
-  background-color: lightgrey;
-  top: 20px;
-  left: 40px;
 }

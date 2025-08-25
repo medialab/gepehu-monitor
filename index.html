@@ -7,8 +7,10 @@
   <link href="css/vuetify.min.css" rel="stylesheet">
   <link href="css/style.css" rel="stylesheet">
  </head>
+
  <body>
   <div id="dashboard"><v-app dark toolbar>
+
     <aside class="navigation-drawer navigation-drawer--absolute navigation-drawer--clipped navigation-drawer--is-booted navigation-drawer--is-mobile navigation-drawer--open navigation-drawer--permanent">
       <v-list>
         <v-subheader class="mt-2">GPU<span class="lower">s</span></v-subheader>
@@ -80,7 +82,7 @@
       </v-list>
 
       <v-list v-if="hoverDate" class="processes">
-        <v-subheader v-if="hoverDate" class="mt-2">PROCESSES RUNNING ({{ hoverDate }})</v-subheader>
+        <v-subheader v-if="hoverDate" class="mt-2">RUNNING TASKS ({{ hoverDate }})</v-subheader>
         <v-list-tile
           v-for="process in hoverProcesses"
           class="process"
@@ -92,8 +94,10 @@
           <p class="command" v-html="process.command"></p>
         </v-list-tile>
       </v-list>
+
       <div class="navigation-drawer__border"></div>
     </aside>
+
     <v-toolbar class="dark" fixed>
       <v-toolbar-title>
         <v-title>gepehu history monitor</v-title>
@@ -103,10 +107,12 @@
         <img src="css/medialab.png" alt="médialab Sciences Po" height=35 />
       </a>
     </v-toolbar>
+
     <main>
       <center id="loader" v-if="loading">
         <img src="css/loader.gif" alt="loader" /><br/>
       </center>
+
       <div class="svg" :style="{opacity: 1 - loading, display: gpusChoices.length ? 'block' : 'none'}">
         <div class="legende">
           <div
@@ -130,6 +136,7 @@
         </div>
       </div>
     </main>
+
     <div class="tooltipBox"><center>
       <b>{{ hoverDate }}</b>
       <hr/>
@@ -138,6 +145,7 @@
         <span class="tooltip-val">{{item.value}}</span>
       </div>
     </center></div>
+
   </v-app></div>
 
   <script type="text/javascript" src="js/d3.v4.min.js"></script>
@@ -145,5 +153,6 @@
   <script type="text/javascript" src="js/vuetify.min.js"></script>
   <script type="text/javascript" src="js/pako.min.js"></script>
   <script type="text/javascript" src="js/gepehu-monitor.js"></script>
+
  </body>
 </html>
