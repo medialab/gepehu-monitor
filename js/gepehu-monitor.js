@@ -423,16 +423,17 @@ new Vue({
           var g = svg.append("g")
             .attr("transform", "translate(" + (margin.left + gpu_idx * (this.width + margin.horiz)) + "," + (margin.top + metric_idx * (height + margin.vert)) + ")");
 
-          // Plot processes as a histogram
+          // Plot processes as a stacked histogram
           if (metricChoice === "n_processes") {
             g.append("g")
               .selectAll("users")
               .data(d3.stack()
+                .order(d3.stackOrderAscending)
                 .keys(this.users.map(u => "processes_by_" + u))
                 .value((d, key) => d[key])
                 (data)
               ).enter().append("path")
-                .attr("fill", d => this.usersColors[this.users[d.index]])
+                .attr("fill", d => this.usersColors[d.key.replace(/processes_by_/, "")])
                 .attr("d", d3.area()
                   .x(xPosition)
                   .y0(d => yScale(d[0]))
