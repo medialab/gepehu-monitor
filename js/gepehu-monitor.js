@@ -1,12 +1,11 @@
 /* TODO
- * - improve calendar by adding margins to allow border selection cases
- * - handle timezone bug when resizing via calendar
  * - add hover dates on calendar ?
  * - move calendar at the bottom instead and add a visual marker of the triangle corresponding to the scale?
  * - fix url datetimes timezoned
  * - use subprocess for processing data
  * - switch ticks to hours when less than a day
  * - handle missing data as zero plot?
+ * - find better ways to handle hoverProcesses
 */
 d3.formatDefaultLocale({
   "decimal": ",",
@@ -286,7 +285,8 @@ new Vue({
       // Setup dimensions
       var nbPlots = this.aggregateGPUs ? 1 : this.gpusChoices.length,
         margin = {top: 20, right: 70, bottom: 30, left: 40, horiz: 70, vert: 30},
-        mainH = window.innerHeight - document.querySelector("nav").getBoundingClientRect().height,
+        calendarH = document.querySelector("nav").getBoundingClientRect().height,
+        mainH = window.innerHeight - calendarH,
         svgH = Math.max(140, mainH),
         svgW = window.innerWidth - document.querySelector("aside").getBoundingClientRect().width,
         height = (svgH - margin.top - margin.bottom - (this.metricsChoices.length - 1) * margin.vert) / this.metricsChoices.length;
@@ -332,20 +332,25 @@ new Vue({
       this.calendarWidth = svgW - margin.left - margin.right;
       this.calendarScale = d3.scaleTime().range([0, this.calendarWidth]).domain([this.fullStart, this.fullEnd]);
 
-      var calendarDates = d3.timeDay.range(this.fullStart, this.fullEnd),
-        calendar = d3.select(".calendar")
-          .style("margin-left", margin.left + "px")
-          .style("margin-right", margin.right + "px")
-          .append("svg")
-            .attr("width", this.calendarWidth)
-            .attr("height", 32),
-        calendarAxis = d3.axisTop(this.calendarScale)
-          .tickFormat(d3.timeFormat("%d %b %y"))
-          .tickSizeOuter(0);
+      var calendar = d3.select(".calendar").append("svg")
+        .attr("width", svgW)
+        .attr("height", calendarH)
+        .append("g")
+          .attr("width", this.calendarWidth)
+          .attr("height", 32)
+          .attr("transform", "translate(" + margin.left + ", 16)");
+      calendar.append("rect")
+        .attr("width", this.calendarWidth)
+        .attr("height", 32)
+        .attr("fill", "#333");
 
+      var calendarAxis = d3.axisTop(this.calendarScale)
+        .tickFormat(d3.timeFormat("%d %b %y"))
+        .tickSizeOuter(0),
+        calendarDates = d3.timeDay.range(this.fullStart, this.fullEnd);
       if (this.calendarWidth / calendarDates.length < 175)
-        xAxis.ticks(this.calendarWidth / 175);
-      else xAxis.tickValues(dates);
+        calendarAxis.ticks(this.calendarWidth / 175);
+      else calendarAxis.tickValues(calendarDates);
       calendar.append("g")
         .attr("class", "calendar-axis")
         .attr("transform", "translate(0, 28)")
@@ -360,10 +365,10 @@ new Vue({
 
       calendar.append("rect")
         .attr("class", "interactions")
-        .attr("x", 0)
-        .attr("y", 0)
-        .attr("width", this.calendarWidth)
-        .attr("height", 32)
+        .attr("x", -margin.left)
+        .attr("y", -16)
+        .attr("width", svgW)
+        .attr("height", calendarH)
         .on("mouseover", this.hoverCalendar)
         .on("mousedown", this.startCalendarBrush)
         .on("mousemove", this.hoverCalendar)
@@ -501,8 +506,8 @@ new Vue({
             .attr("gpu_idx", gpu_idx)
             .attr("x", -margin.left)
             .attr("y", -margin.top)
-            .attr("width", margin.left + this.width + margin.right + margin.horiz)
-            .attr("height", margin.top + height + margin.bottom + margin.vert)
+            .attr("width", margin.left + this.width + margin.horiz)
+            .attr("height", margin.top + height + margin.vert)
             .on("mouseover", this.hover)
             .on("mouseleave", this.clearTooltip)
             .on("mousedown", this.startBrush)
@@ -599,12 +604,15 @@ new Vue({
     },
     // Initiate zoom-brushing on click down
     startBrush: function() {
+      var brushX = d3.event.pageX - this.svgX - this.brushing * this.gapX;
+      if (brushX < 0 || brushX > this.width) return;
       this.brushing = d3.event.target.attributes.gpu_idx.value;
-      this.brushX = d3.event.pageX - this.svgX - this.brushing * this.gapX;
+      this.brushX = brushX;
       d3.selectAll("rect.interactions").style("cursor", "e-resize");
     },
     // Complete zoom-brushing on click up
     stopBrush: function() {
+      if (!this.brushing) return;
       var brush = document.querySelector("rect.brush"),
         x = parseInt(brush.getAttribute("x")),
         width = parseInt(brush.getAttribute("width"));
@@ -635,11 +643,12 @@ new Vue({
     },
     // Initiate zoom-brushing from calendar bar on click down
     startCalendarBrush: function() {
-      this.calendarBrushing = true;
       var calBrush = document.querySelector("rect.calendar-brush"),
         x = parseInt(calBrush.getAttribute("x")),
         w = parseInt(calBrush.getAttribute("width")),
         brushX = d3.event.pageX - this.svgX;
+      if (brushX < 0 || brushX > this.width) return;
+      this.calendarBrushing = true;
       // Adjust brush zone from its left edge if the mouse is close to it
       if (Math.abs(brushX - x) < 8)
         this.calendarBrushX = x + w;
@@ -692,16 +701,22 @@ new Vue({
       } else {
         var calBrush = document.querySelector("rect.calendar-brush"),
           x = parseInt(calBrush.getAttribute("x")),
-          w = parseInt(calBrush.getAttribute("width"));
-        if (Math.abs(brushX - x) < 8 || Math.abs(brushX - x - w) < 8) {
-          d3.selectAll("rect.interactions").style("cursor", "ew-resize");
-        } else {
-          d3.selectAll("rect.interactions").style("cursor", "crosshair");
-        }
+          w = parseInt(calBrush.getAttribute("width")),
+          y = d3.event.pageY;
+        d3.selectAll("rect.interactions").style("cursor",
+          (Math.abs(brushX - x) < 8 || Math.abs(brushX - x - w) < 8
+          ? "ew-resize"
+          : (brushX >= 0 && brushX <= this.width && y >= 16 && y <= 48
+            ? "crosshair"
+            : "unset"
+            )
+          )
+        );
       }
     },
     // Complete zoom-brushing from calendar bar on click up
     stopCalendarBrush: function() {
+      if (!this.calendarBrushing) return;
       var brush = document.querySelector("rect.calendar-brush"),
         x = parseInt(brush.getAttribute("x")),
         width = parseInt(brush.getAttribute("width"));

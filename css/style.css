@@ -10,6 +10,10 @@ body {
   font-family: monospace;
   font-weight: bold;
   font-size: 32px;
+  color: #008F11;
+}
+.logo img {
+  margin-top: 5px;
 }
 #loader {
   position: fixed;
@@ -68,9 +72,9 @@ aside {
 }
 .calendar {
   overflow: hidden;
-  height: 32px;
-  top: 15px;
-  background-color: #333;
+  height: 64px;
+  width: calc(100% - 300px);
+  margin-right: 0!important;
 }
 .calendar-axis path {
   stroke: none;

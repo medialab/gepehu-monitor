@@ -99,12 +99,13 @@
     </aside>
 
     <v-toolbar class="dark" fixed>
-      <a href="https://medialab.sciencespo.fr/" target="_blank">
-        <img src="css/medialab.png" alt="médialab Sciences Po" height=35 />
-      </a>
       <v-toolbar-title>
         <v-title>GPUse</v-title>
       </v-toolbar-title>
+      <v-spacer></v-spacer>
+      <a href="https://medialab.sciencespo.fr/" target="_blank" class="logo">
+        <img src="css/medialab.png" alt="médialab Sciences Po" height=35 />
+      </a>
       <v-spacer></v-spacer>
       <div class="calendar" :style="{opacity: 1 - loading, display: gpusChoices.length ? 'block' : 'none'}"></div>
     </v-toolbar>
