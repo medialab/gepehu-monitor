@@ -352,8 +352,8 @@ new Vue({
         .tickFormat(d3.timeFormat("%d %b %y"))
         .tickSizeOuter(0),
         calendarDates = d3.timeDay.range(this.fullStart, this.fullEnd);
-      if (this.calendarWidth / calendarDates.length < 175)
-        calendarAxis.ticks(this.calendarWidth / 175);
+      if (this.calendarWidth / calendarDates.length < 100)
+        calendarAxis.ticks(this.calendarWidth / 100);
       else calendarAxis.tickValues(calendarDates);
       calendar.append("g")
         .attr("class", "calendar-axis")
@@ -651,7 +651,7 @@ new Vue({
         x = parseInt(calBrush.getAttribute("x")),
         w = parseInt(calBrush.getAttribute("width")),
         brushX = d3.event.pageX - this.svgX;
-      if (brushX < 0 || brushX > this.width) return;
+      if (brushX < 0 || brushX > this.calendarWidth) return;
       this.calendarBrushing = true;
       // Adjust brush zone from its left edge if the mouse is close to it
       if (Math.abs(brushX - x) < 8)
@@ -710,7 +710,7 @@ new Vue({
         d3.selectAll("rect.interactions").style("cursor",
           (Math.abs(brushX - x) < 8 || Math.abs(brushX - x - w) < 8
           ? "ew-resize"
-          : (brushX >= 0 && brushX <= this.width && y >= 16 && y <= 48
+          : (brushX >= 0 && brushX <= this.calendarWidth && y >= 16 && y <= 48
             ? "crosshair"
             : "unset"
             )
@@ -744,7 +744,7 @@ new Vue({
         this.maxDate = maxDate;
       }
 
-      d3.selectAll("rect.interactions").style("cursor", x > 0 && x < this.width ? "crosshair" : "unset");
+      d3.selectAll("rect.interactions").style("cursor", x > 0 && x < this.calendarWidth ? "crosshair" : "unset");
       this.calendarBrushing = false;
     },
     // Double click to reinitialize zoom to whole period
