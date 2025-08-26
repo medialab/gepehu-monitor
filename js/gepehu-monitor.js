@@ -1,6 +1,8 @@
 /* TODO
- * - fix regular brush oversizing when using calendar brush
  * - improve calendar by adding margins to allow border selection cases
+ * - handle timezone bug when resizing via calendar
+ * - add hover dates on calendar ?
+ * - move calendar at the bottom instead and add a visual marker of the triangle corresponding to the scale?
  * - fix url datetimes timezoned
  * - use subprocess for processing data
  * - switch ticks to hours when less than a day
@@ -670,10 +672,21 @@ new Vue({
 
         // Update brush position on all plots as well
         var regBrushX = this.xScale(this.calendarScale.invert(this.calendarBrushX)),
-          regWidth = this.xScale(this.calendarScale.invert(this.calendarBrushX + width)) - regBrushX;
+          regBrushEnd = this.xScale(this.calendarScale.invert(brushX)),
+          regWidth = regBrushEnd - regBrushX;
         d3.selectAll("rect.brush")
-          .attr("x", regWidth >= 0 ? regBrushX : regBrushX + regWidth)
-          .attr("width", Math.abs(regWidth));
+          .attr("x", Math.max(0,
+            Math.min(this.width,
+              regWidth >= 0 ? regBrushX : regBrushX + regWidth
+            )
+          ))
+          .attr("width", Math.max(0,
+            Math.min(this.width,
+              regWidth >= 0
+              ? (regBrushX < 0 ? regBrushEnd : Math.min(regBrushEnd, this.width) - regBrushX)
+              : (regBrushX > this.width ? this.width - regBrushEnd : Math.min(-regWidth, regBrushX))
+            )
+          ));
 
       // Adjust cursor's icon otherwise when getting close to brush's edges
       } else {
