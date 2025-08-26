@@ -3,7 +3,6 @@
  * - move calendar at the bottom instead and add a visual marker of the triangle corresponding to the scale?
  * - fix url datetimes timezoned
  * - use subprocess for processing data
- * - switch ticks to hours when less than a day
  * - handle missing data as zero plot?
  * - find better ways to handle hoverProcesses
 */
@@ -320,13 +319,18 @@ new Vue({
       ));
 
       // Prepare X axis
-      var dates = d3.timeDay.range(this.start, this.end),
-        xAxis = d3.axisBottom(this.xScale)
-        .tickFormat(d3.timeFormat("%d %b %y"))
+      var xAxis = d3.axisBottom(this.xScale)
         .tickSizeOuter(0);
-      if (this.width / dates.length < 175)
-        xAxis.ticks(this.width / 175);
-      else xAxis.tickValues(dates);
+      // Use days if the period covered is at least a bit more than a day
+      if (this.end - this.start > 100_000_000) {
+        var dates = d3.timeDay.range(this.start, this.end);
+        xAxis.tickFormat(d3.timeFormat("%d %b %y"));
+        if (this.width / dates.length < 100)
+          xAxis.ticks(this.width / 100);
+        else xAxis.tickValues(dates);
+      // Use hour:minutes otherwise
+      } else xAxis.tickFormat(d3.timeFormat("%H:%M"))
+        .ticks(Math.min(12, this.width / 75));
 
       // Draw zoom-brushable calendar
       this.calendarWidth = svgW - margin.left - margin.right;
