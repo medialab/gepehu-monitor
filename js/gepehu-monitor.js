@@ -1,6 +1,5 @@
 /* TODO
  * - move calendar at the bottom instead and add a visual marker of the triangle corresponding to the scale?
- * - fix url datetimes timezoned
  * - use subprocess for processing data
  * - handle missing data as zero plot?
  * - find better ways to handle hoverProcesses
@@ -32,6 +31,7 @@ d3.axisFormat = (unit) => {
     return d => d3.format(",d")(d).replace(" 000", " Go");
   return d => d3.intFormat(d) + " " + unit;
 };
+d3.minutize = (d) => d.toLocaleString('sv').replace(' ', 'T').slice(0, 16);
 
 new Vue({
   el: "#dashboard",
@@ -76,8 +76,8 @@ new Vue({
     url: function() {
       return "gpus=" + this.gpusChoices.join(",") +
         (this.aggregateGPUs ? "&aggregated" : "") +
-        (this.minDate ? "&from=" + this.minDate.toISOString().slice(0, 16) : "") +
-        (this.maxDate ? "&to=" + this.maxDate.toISOString().slice(0, 16) : "") +
+        (this.minDate ? "&from=" + d3.minutize(this.minDate) : "") +
+        (this.maxDate ? "&to=" + d3.minutize(this.maxDate) : "") +
         "&metrics=" + this.metricsChoices.join(",");
     }
   },
@@ -142,7 +142,8 @@ new Vue({
     // Read settings values from URL query arguments
     readUrl: function() {
       var url = window.location.hash.slice(1),
-        aggregate = false;
+        aggregate = false,
+        d = new Date();
       if (url && ~url.indexOf("&")) url.split("&").forEach(urlPiece => {
         var [key, values] = urlPiece.split("=");
         if (key == "gpus" && values != "")
@@ -150,9 +151,9 @@ new Vue({
         else if (key == "aggregated")
           aggregate = true;
         else if (key == "from")
-          this.minDate = new Date(values + ":00.000Z");
+          this.minDate = new Date(values + ":00.000Z") + d.TimezoneOffset();
         else if (key == "to")
-          this.maxDate = new Date(values + ":00.000Z");
+          this.maxDate = new Date(values + ":00.000Z") + d.TimezoneOffset();
         else if (key == "metrics" && values != "")
           values.split(",").forEach(v => this.toggleMetric(v, true));
       });
@@ -201,7 +202,7 @@ new Vue({
 
           gpu.rows = d3.csvParse(res, (d, idx) => {
             d.datetime = new Date(d.datetime);
-            d.minute = d.datetime.toISOString().slice(0, 16);
+            d.minute = d3.minutize(d.datetime);
             d.usage_percent = parseFloat(d.usage_percent) / 100;
             d.memory_percent = parseFloat(d.memory_percent) / 100;
             d.memory = parseInt(d.memory);
@@ -587,7 +588,7 @@ new Vue({
 
       // Display tooltip
       var dat = this.xScale.invert(brushX),
-        minute = dat.toISOString().slice(0, 16),
+        minute = d3.minutize(dat),
         row = (this.aggregateGPUs ? this.aggregatedGPU : this.gpus[gpu_idx]).rowsMap[minute];
 
       this.hoverDate = d3.timeFormat("%b %d %Y %H:%M")(dat);
