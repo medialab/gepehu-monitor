@@ -1,10 +1,10 @@
 /* TODO
  * - move calendar at the bottom instead and add a visual marker of the triangle corresponding to the scale?
  * - fix url datetimes timezoned
- * - fix ticks overlapping in some cases (ie http://gepehu.medialab.sciences-po.fr/gpu-monitor/#gpus=0,1&from=2025-07-29T00:22&to=2025-08-08T16:10&metrics=usage_percent,memory,energy,temperature,n_processes)
  * - use subprocess for processing data
  * - handle missing data as zero plot?
  * - find better ways to handle hoverProcesses
+ * - favico
 */
 d3.formatDefaultLocale({
   "decimal": ",",
@@ -320,16 +320,15 @@ new Vue({
       // Prepare X axis
       var xAxis = d3.axisBottom(this.xScale)
         .tickSizeOuter(0);
-      // Use days if the period covered is at least a bit more than a day
-      if (this.end - this.start > 100_000_000) {
-        var dates = d3.timeDay.range(this.start, this.end);
-        xAxis.tickFormat(d3.timeFormat("%d %b %y"));
-        if (this.width / dates.length < 125)
-          xAxis.ticks(this.width / 125);
-        else xAxis.tickValues(dates);
+      // Use days if the period covered is at least a day and a half
+      if (this.end - this.start > 129_600_000)
+        xAxis.tickFormat(d3.timeFormat("%d %b %y"))
+          .ticks(d3.unixDay.every(Math.max(1, Math.trunc(
+            150 * d3.timeDay.range(this.start, this.end).length / this.width
+          ))));
       // Use hour:minutes otherwise
-      } else xAxis.tickFormat(d3.timeFormat("%H:%M"))
-        .ticks(Math.min(12, this.width / 75));
+      else xAxis.tickFormat(d3.timeFormat("%H:%M"))
+        .tickValues(d3.utcTicks(this.start, this.end, Math.trunc(this.width / 100)));
 
       // Draw zoom-brushable calendar
       this.calendarWidth = svgW - margin.left - margin.right;
@@ -352,17 +351,16 @@ new Vue({
         .attr("fill", "#008F11")
         .attr("y", 48);
 
-      var calendarAxis = d3.axisTop(this.calendarScale)
-        .tickFormat(d3.timeFormat("%d %b %y"))
-        .tickSizeOuter(0),
-        calendarDates = d3.timeDay.range(this.fullStart, this.fullEnd);
-      if (this.calendarWidth / calendarDates.length < 125)
-        calendarAxis.ticks(this.calendarWidth / 125);
-      else calendarAxis.tickValues(calendarDates);
       calendar.append("g")
         .attr("class", "calendar-axis")
         .attr("transform", "translate(0, 28)")
-        .call(calendarAxis);
+        .call(d3.axisTop(this.calendarScale)
+          .tickFormat(d3.timeFormat("%d %b %y"))
+          .tickSizeOuter(0)
+          .ticks(d3.unixDay.every(Math.trunc(
+            100 * d3.timeDay.range(this.fullStart, this.fullEnd).length / this.calendarWidth
+          )))
+        );
 
       calendar.append("rect")
         .attr("class", "calendar-brush")
