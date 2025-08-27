@@ -722,7 +722,7 @@ new Vue({
       }
       d3.select("text.date-tooltip")
         .attr("x", brushX)
-        .text(d3.timeFormat("%d %b %y %Hh")(this.xScale.invert(brushX)));
+        .text(d3.timeFormat("%d %b %y %Hh")(this.calendarScale.invert(brushX)));
     },
     // Complete zoom-brushing from calendar bar on click up
     stopCalendarBrush: function() {
