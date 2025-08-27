@@ -1,7 +1,7 @@
 /* TODO
  * - move calendar at the bottom instead and add a visual marker of the triangle corresponding to the scale?
- * - use subprocess for processing data
  * - handle missing data as zero plot?
+ * - use subprocess for processing data
  * - find better ways to handle hoverProcesses
  * - favico
 */
@@ -32,6 +32,7 @@ d3.axisFormat = (unit) => {
   return d => d3.intFormat(d) + " " + unit;
 };
 d3.minutize = (d) => d.toLocaleString('sv').replace(' ', 'T').slice(0, 16);
+d3.deminutize = (d) => new Date(d + ":00");
 
 new Vue({
   el: "#dashboard",
@@ -151,9 +152,9 @@ new Vue({
         else if (key == "aggregated")
           aggregate = true;
         else if (key == "from")
-          this.minDate = new Date(values + ":00.000Z") + d.TimezoneOffset();
+          this.minDate = d3.deminutize(values);
         else if (key == "to")
-          this.maxDate = new Date(values + ":00.000Z") + d.TimezoneOffset();
+          this.maxDate = d3.deminutize(values);
         else if (key == "metrics" && values != "")
           values.split(",").forEach(v => this.toggleMetric(v, true));
       });
