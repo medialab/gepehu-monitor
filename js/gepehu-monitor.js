@@ -1,7 +1,7 @@
 /* TODO
- * - add hover dates on calendar ?
  * - move calendar at the bottom instead and add a visual marker of the triangle corresponding to the scale?
  * - fix url datetimes timezoned
+ * - fix ticks overlapping in some cases (ie http://gepehu.medialab.sciences-po.fr/gpu-monitor/#gpus=0,1&from=2025-07-29T00:22&to=2025-08-08T16:10&metrics=usage_percent,memory,energy,temperature,n_processes)
  * - use subprocess for processing data
  * - handle missing data as zero plot?
  * - find better ways to handle hoverProcesses
@@ -325,8 +325,8 @@ new Vue({
       if (this.end - this.start > 100_000_000) {
         var dates = d3.timeDay.range(this.start, this.end);
         xAxis.tickFormat(d3.timeFormat("%d %b %y"));
-        if (this.width / dates.length < 100)
-          xAxis.ticks(this.width / 100);
+        if (this.width / dates.length < 125)
+          xAxis.ticks(this.width / 125);
         else xAxis.tickValues(dates);
       // Use hour:minutes otherwise
       } else xAxis.tickFormat(d3.timeFormat("%H:%M"))
@@ -342,18 +342,23 @@ new Vue({
         .append("g")
           .attr("width", this.calendarWidth)
           .attr("height", 32)
-          .attr("transform", "translate(" + margin.left + ", 16)");
+          .attr("transform", "translate(" + margin.left + ", 13)");
       calendar.append("rect")
         .attr("width", this.calendarWidth)
         .attr("height", 32)
         .attr("fill", "#333");
+      calendar.append("text")
+        .attr("class", "date-tooltip")
+        .attr("text-anchor", "middle")
+        .attr("fill", "#008F11")
+        .attr("y", 48);
 
       var calendarAxis = d3.axisTop(this.calendarScale)
         .tickFormat(d3.timeFormat("%d %b %y"))
         .tickSizeOuter(0),
         calendarDates = d3.timeDay.range(this.fullStart, this.fullEnd);
-      if (this.calendarWidth / calendarDates.length < 100)
-        calendarAxis.ticks(this.calendarWidth / 100);
+      if (this.calendarWidth / calendarDates.length < 125)
+        calendarAxis.ticks(this.calendarWidth / 125);
       else calendarAxis.tickValues(calendarDates);
       calendar.append("g")
         .attr("class", "calendar-axis")
@@ -370,13 +375,14 @@ new Vue({
       calendar.append("rect")
         .attr("class", "interactions")
         .attr("x", -margin.left)
-        .attr("y", -16)
+        .attr("y", -13)
         .attr("width", svgW)
         .attr("height", calendarH)
         .on("mouseover", this.hoverCalendar)
         .on("mousedown", this.startCalendarBrush)
         .on("mousemove", this.hoverCalendar)
         .on("mouseup", this.stopCalendarBrush)
+        .on("mouseleave", this.clearCalendarTooltip)
         .on("dblclick", this.resetZoom);
 
       // Prepare datasets to plot
@@ -710,13 +716,16 @@ new Vue({
         d3.selectAll("rect.interactions").style("cursor",
           (Math.abs(brushX - x) < 8 || Math.abs(brushX - x - w) < 8
           ? "ew-resize"
-          : (brushX >= 0 && brushX <= this.calendarWidth && y >= 16 && y <= 48
+          : (brushX >= 0 && brushX <= this.calendarWidth && y >= 13 && y <= 45
             ? "crosshair"
             : "unset"
             )
           )
         );
       }
+      d3.select("text.date-tooltip")
+        .attr("x", brushX)
+        .text(d3.timeFormat("%d %b %y %Hh")(this.xScale.invert(brushX)));
     },
     // Complete zoom-brushing from calendar bar on click up
     stopCalendarBrush: function() {
@@ -746,6 +755,9 @@ new Vue({
 
       d3.selectAll("rect.interactions").style("cursor", x > 0 && x < this.calendarWidth ? "crosshair" : "unset");
       this.calendarBrushing = false;
+    },
+    clearCalendarTooltip: function() {
+      d3.select("text.date-tooltip").text("");
     },
     // Double click to reinitialize zoom to whole period
     resetZoom: function() {

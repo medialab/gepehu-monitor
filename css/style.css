@@ -80,10 +80,10 @@ aside {
   stroke: none;
 }
 .calendar-axis line{
-  stroke: #666;
+  stroke: #008F11;
 }
 .calendar-axis text {
-  fill: #666;
+  fill: #008F11;
   font-size: 14px;
   font-family: Roboto;
   user-select: none;
