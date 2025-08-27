@@ -95,15 +95,14 @@ new Vue({
   },
   // Initialize app
   mounted: function() {
+        console.log("INIT APP")
     // Initialize URL with default parameters if not already a permalink
     if (!window.location.hash)
       window.location.hash = this.url;
 
     // Download list of GPUs IDs and prepare data structure
-    d3.request("data/list").mimeType("text/plain").get((error, listGPUs) => {
-      if (error) throw error;
-
-      listGPUs.responseText.trim().split("\n").forEach((gpuID, idx) => {
+    d3.text("data/list").then((listGPUs) => {
+      listGPUs.trim().split("\n").forEach((gpuID, idx) => {
         this.gpus.push({
           id: gpuID,
           index: idx,
@@ -544,11 +543,11 @@ new Vue({
       d3.selectAll("rect.interactions").style("cursor", "unset");
     },
     // Handle tooltip on hovering the plots & movements when zoom-brushing
-    hover: function() {
-      if (!d3.event) return;
+    hover: function(event) {
+      if (!event) return;
 
-      var gpu_idx = d3.event.target.attributes.gpu_idx.value,
-        brushX = d3.event.pageX - this.svgX - gpu_idx * this.gapX;
+      var gpu_idx = event.target.attributes.gpu_idx.value,
+        brushX = event.pageX - this.svgX - gpu_idx * this.gapX;
 
       // Handle movements while zoom-brushing
       if (this.brushing != null) {
@@ -608,15 +607,15 @@ new Vue({
 
       var boxHeight = 45 + 21 * this.metricsChoices.length;
       d3.select(".tooltipBox")
-        .style("left", d3.event.pageX - 120 + "px")
-        .style("top", d3.event.pageY + (window.innerHeight - d3.event.pageY > (30 + boxHeight) ? 30 : -(30 + boxHeight)) + "px")
+        .style("left", event.pageX - 120 + "px")
+        .style("top", event.pageY + (window.innerHeight - event.pageY > (30 + boxHeight) ? 30 : -(30 + boxHeight)) + "px")
         .style("display", "block");
     },
     // Initiate zoom-brushing on click down
-    startBrush: function() {
-      var brushX = d3.event.pageX - this.svgX - this.brushing * this.gapX;
-      if (brushX < 0 || brushX > this.width) return;
-      this.brushing = d3.event.target.attributes.gpu_idx.value;
+    startBrush: function(event) {
+      this.brushing = event.target.attributes.gpu_idx.value;
+      var brushX = event.pageX - this.svgX - this.brushing * this.gapX;
+      if (brushX < 0 || brushX > this.width) return this.brushing = null;
       this.brushX = brushX;
       d3.selectAll("rect.interactions").style("cursor", "e-resize");
     },
@@ -652,11 +651,11 @@ new Vue({
       this.brushing = null;
     },
     // Initiate zoom-brushing from calendar bar on click down
-    startCalendarBrush: function() {
+    startCalendarBrush: function(event) {
       var calBrush = document.querySelector("rect.calendar-brush"),
         x = parseInt(calBrush.getAttribute("x")),
         w = parseInt(calBrush.getAttribute("width")),
-        brushX = d3.event.pageX - this.svgX;
+        brushX = event.pageX - this.svgX;
       if (brushX < 0 || brushX > this.calendarWidth) return;
       this.calendarBrushing = true;
       // Adjust brush zone from its left edge if the mouse is close to it
@@ -670,10 +669,10 @@ new Vue({
       d3.selectAll("rect.interactions").style("cursor", "e-resize");
     },
     // Handle movements when zoom-brushing from calendar bar
-    hoverCalendar: function() {
-      if (!d3.event) return;
+    hoverCalendar: function(event) {
+      if (!event) return;
 
-      var brushX = d3.event.pageX - this.svgX;
+      var brushX = event.pageX - this.svgX;
 
       // Handle movements while zoom-brushing
       if (this.calendarBrushing) {
@@ -712,7 +711,7 @@ new Vue({
         var calBrush = document.querySelector("rect.calendar-brush"),
           x = parseInt(calBrush.getAttribute("x")),
           w = parseInt(calBrush.getAttribute("width")),
-          y = d3.event.pageY;
+          y = event.pageY;
         d3.selectAll("rect.interactions").style("cursor",
           (Math.abs(brushX - x) < 8 || Math.abs(brushX - x - w) < 8
           ? "ew-resize"
