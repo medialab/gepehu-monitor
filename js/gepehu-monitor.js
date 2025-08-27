@@ -621,14 +621,14 @@ new Vue({
     stopBrush: function() {
       if (!this.brushing) return;
       var brush = document.querySelector("rect.brush"),
-        x = parseInt(brush.getAttribute("x")),
-        width = parseInt(brush.getAttribute("width"));
+        x = parseFloat(brush.getAttribute("x")),
+        width = parseFloat(brush.getAttribute("width"));
 
       // Evaluate zoom period datetimes from recorded positions
       var minDate = this.xScale.invert(x);
       if (minDate <= this.start)
         minDate = this.start;
-      var maxDate = this.xScale.invert(x + parseInt(brush.getAttribute("width")));
+      var maxDate = this.xScale.invert(x + parseFloat(brush.getAttribute("width")));
       if (maxDate >= this.end)
         maxDate = this.end;
       if (maxDate >= this.fullEnd)
@@ -651,8 +651,8 @@ new Vue({
     // Initiate zoom-brushing from calendar bar on click down
     startCalendarBrush: function(event) {
       var calBrush = document.querySelector("rect.calendar-brush"),
-        x = parseInt(calBrush.getAttribute("x")),
-        w = parseInt(calBrush.getAttribute("width")),
+        x = parseFloat(calBrush.getAttribute("x")),
+        w = parseFloat(calBrush.getAttribute("width")),
         brushX = event.pageX - this.svgX;
       if (brushX < 0 || brushX > this.calendarWidth) return;
       this.calendarBrushing = true;
@@ -707,8 +707,8 @@ new Vue({
       // Adjust cursor's icon otherwise when getting close to brush's edges
       } else {
         var calBrush = document.querySelector("rect.calendar-brush"),
-          x = parseInt(calBrush.getAttribute("x")),
-          w = parseInt(calBrush.getAttribute("width")),
+          x = parseFloat(calBrush.getAttribute("x")),
+          w = parseFloat(calBrush.getAttribute("width")),
           y = event.pageY;
         d3.selectAll("rect.interactions").style("cursor",
           (Math.abs(brushX - x) < 8 || Math.abs(brushX - x - w) < 8
@@ -728,22 +728,20 @@ new Vue({
     stopCalendarBrush: function() {
       if (!this.calendarBrushing) return;
       var brush = document.querySelector("rect.calendar-brush"),
-        x = parseInt(brush.getAttribute("x")),
-        width = parseInt(brush.getAttribute("width"));
+        x = parseFloat(brush.getAttribute("x")),
+        width = parseFloat(brush.getAttribute("width"));
 
       // Evaluate zoom period datetimes from recorded positions
       var minDate = this.calendarScale.invert(x);
       if (minDate <= this.fullStart)
         minDate = this.fullStart;
-      var maxDate = this.calendarScale.invert(x + parseInt(brush.getAttribute("width")));
+      var maxDate = this.calendarScale.invert(x + parseFloat(brush.getAttribute("width")));
       if (maxDate >= this.fullEnd)
         maxDate = null;
 
       // Do not zoom when selection is too small (<5px) or too short (<30min)
       var duration = (maxDate || this.fullEnd) - (minDate || this.fullStart);
-      if (width < 5 || duration < 1_800_000) {
-        d3.selectAll("rect.brush").attr("width", 2);
-      } else {
+      if (width >= 5 && duration >= 1_800_000) {
         d3.selectAll("rect.brush").attr("width", 0);
         if (!this.loading) this.loading = 0.2;
         this.minDate = minDate;
