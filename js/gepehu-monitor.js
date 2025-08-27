@@ -1,5 +1,4 @@
 /* TODO
- * - move calendar at the bottom instead and add a visual marker of the triangle corresponding to the scale?
  * - use subprocess for processing data
  * - find better ways to handle hoverProcesses
 */

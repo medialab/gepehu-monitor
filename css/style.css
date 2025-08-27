@@ -132,8 +132,9 @@ rect.interactions {
   fill-opacity: 0;
 }
 rect.brush {
-  fill: black;
   fill-opacity: 0.25;
+  stroke: #888;
+  filter: invert(0.5);
 }
 .tooltipBox {
   background: #444;
