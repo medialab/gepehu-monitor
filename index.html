@@ -3,6 +3,7 @@
  <head>
   <meta charset="UTF-8">
   <title>GPUse</title>
+  <link rel="icon" sizes="64x64" href="./favicon.png" type="image/png" />
   <link href="css/roboto.css" rel="stylesheet">
   <link href="css/vuetify.min.css" rel="stylesheet">
   <link href="css/style.css" rel="stylesheet">
@@ -10,6 +11,18 @@
 
  <body>
   <div id="dashboard"><v-app dark toolbar>
+    <v-toolbar class="dark" fixed>
+      <v-toolbar-title>
+        <img src="css/logo.png" alt="GPUse" height=35 />
+        <v-title>GPUse</v-title>
+      </v-toolbar-title>
+      <v-spacer></v-spacer>
+      <a href="https://medialab.sciencespo.fr/" target="_blank" class="medialab">
+        <img src="css/medialab.png" alt="médialab Sciences Po" height=35 />
+      </a>
+      <v-spacer></v-spacer>
+      <div class="calendar" :style="{opacity: 1 - loading, display: gpusChoices.length ? 'block' : 'none'}"></div>
+    </v-toolbar>
 
     <aside class="navigation-drawer navigation-drawer--absolute navigation-drawer--clipped navigation-drawer--is-booted navigation-drawer--is-mobile navigation-drawer--open navigation-drawer--permanent">
       <v-list>
@@ -97,18 +110,6 @@
 
       <div class="navigation-drawer__border"></div>
     </aside>
-
-    <v-toolbar class="dark" fixed>
-      <v-toolbar-title>
-        <v-title>GPUse</v-title>
-      </v-toolbar-title>
-      <v-spacer></v-spacer>
-      <a href="https://medialab.sciencespo.fr/" target="_blank" class="logo">
-        <img src="css/medialab.png" alt="médialab Sciences Po" height=35 />
-      </a>
-      <v-spacer></v-spacer>
-      <div class="calendar" :style="{opacity: 1 - loading, display: gpusChoices.length ? 'block' : 'none'}"></div>
-    </v-toolbar>
 
     <main>
       <center id="loader" v-if="loading">

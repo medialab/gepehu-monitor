@@ -3,7 +3,6 @@
  * - handle missing data as zero plot?
  * - use subprocess for processing data
  * - find better ways to handle hoverProcesses
- * - favico
 */
 d3.formatDefaultLocale({
   "decimal": ",",
