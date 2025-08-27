@@ -1,6 +1,5 @@
 /* TODO
  * - move calendar at the bottom instead and add a visual marker of the triangle corresponding to the scale?
- * - handle missing data as zero plot?
  * - use subprocess for processing data
  * - find better ways to handle hoverProcesses
 */
@@ -431,6 +430,8 @@ new Vue({
         // Plot each GPU as a column
         datasets.forEach((rows, gpu_idx) => {
 
+          var rowsMap = this.aggregateGPUs ? this.aggregatedGPU.rowsMap : this.gpus[gpu_idx].rowsMap;
+
           // Filter zoomed out data
           var data = rows.filter((d) => d.datetime >= this.start && d.datetime <= this.end);
 
@@ -459,14 +460,14 @@ new Vue({
           } else {
 
             g.append("path")
-              .datum(data)
+              .datum(d3.timeMinutes(this.start, this.end))
               .attr("class", "line")
               .attr("fill", "none")
               .attr("stroke", metric.color)
-              .attr("stroke-width", 1)
+              .attr("stroke-width", 0.5)
               .attr("d", d3.line()
-                .x((d) => this.xScale(d.datetime))
-                .y((d) => yScale(d[metricChoice]))
+                .x((d) => this.xScale(d))
+                .y((d) => yScale((rowsMap[d3.minutize(d)] || {})[metricChoice] || 0))
               );
 
             g.append("path")
