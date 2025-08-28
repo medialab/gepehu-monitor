@@ -117,8 +117,8 @@ new Vue({
 
       // Start downloading individual GPUs metrics data
       this.downloadData();
-      // Refresh metrics data every 30s
-      setInterval(this.downloadData, 30_000);
+      // Refresh metrics data every minute
+      setInterval(this.downloadData, 60_000);
 
       // Initialize app with permalink settings
       this.readUrl();
@@ -513,7 +513,8 @@ new Vue({
             .on("mousedown", this.startBrush)
             .on("mousemove", this.hover)
             .on("mouseup", this.stopBrush)
-            .on("dblclick", this.resetZoom);
+            .on("dblclick", this.resetZoom)
+            .on("wheel", this.wheelZoom);
 
         });
       });
@@ -640,6 +641,20 @@ new Vue({
 
       d3.selectAll("rect.interactions").style("cursor", x > 0 && x < this.width ? "crosshair" : "unset");
       this.brushing = null;
+    },
+    // Use mouse wheel to zoom-focus or unfocus
+    wheelZoom: function(event) {
+      const zoomRatio = 1.5,
+        direction = (event.deltaY && event.deltaY > 0 ? -1 : 1),
+        zoomFactor = (direction === 1 ? 1 / zoomRatio : zoomRatio),
+        zoomCenter = event.pageX - this.svgX - this.brushing * this.gapX;
+      if ((direction == 1 && this.end - this.start < 1_800_000) || (direction == -1 && this.start == this.fullStart && this.end == this.fullEnd )) return;
+      this.minDate = this.xScale.invert(zoomCenter * (1 - zoomFactor));
+      this.maxDate = this.xScale.invert(this.width * zoomFactor + zoomCenter * (1 - zoomFactor));
+      if (this.minDate < this.fullStart)
+        this.minDate = this.fullStart;
+      if (this.maxDate > this.fullEnd)
+        this.maxDate = null;
     },
     // Initiate zoom-brushing from calendar bar on click down
     startCalendarBrush: function(event) {
