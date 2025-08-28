@@ -174,7 +174,7 @@ new Vue({
     },
     // Toggle a metric choice
     toggleMetric: function(metricID, force) {
-      this.metrics.forEach((m) => {
+      this.metrics.forEach(m => {
         if (m.id === metricID)
           m.selected = force || !m.selected;
       });
@@ -570,7 +570,7 @@ new Vue({
         this.brushX = brushX;
         d3.selectAll("rect.brush")
           .attr("x", this.brushX)
-          .attr("width", 2);
+          .attr("width", 1);
         d3.selectAll("rect.interactions").style("cursor", "crosshair");
       }
 
@@ -629,7 +629,7 @@ new Vue({
       // Do not zoom when selection is too small (<5px) or too short (<30min)
       const duration = (maxDate || this.end) - (minDate || this.start);
       if (width < 5 || duration < 1_800_000) {
-        d3.selectAll("rect.brush").attr("width", 2);
+        d3.selectAll("rect.brush").attr("width", 1);
       } else {
         d3.selectAll("rect.brush").attr("width", 0);
         if (!this.loading) this.loading = 0.2;
