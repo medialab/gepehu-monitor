@@ -44,13 +44,13 @@ new Vue({
     gpusDone: [],
     aggregateGPUs: true,
     metrics: [
-      {id: "usage_percent",     selected: true,  name: "GPU",          unit: "%",  color: "deepskyblue"},
+      {id: "usage_percent",     selected: true,  name: "GPU use",      unit: "%",  color: "deepskyblue"},
       {id: "memory",            selected: true,  name: "Memory use",   unit: "Mo", color: "lawngreen"},
       {id: "memory_percent",    selected: false, name: "Memory use",   unit: "%",  color: "lawngreen"},
       {id: "energy",            selected: true,  name: "Energy",       unit: "W",  color: "gold"},
       {id: "temperature",       selected: true,  name: "Temperature",  unit: "°C", color: "crimson"},
       {id: "fan_speed_percent", selected: false, name: "Fan speed",    unit: "%",  color: "mediumorchid"},
-      {id: "n_processes",       selected: true,  name: "Processes",    unit: "", color: "grey"}
+      {id: "n_processes",       selected: true,  name: "Processes",    unit: "",   color: "grey"}
     ],
     users: [],
     usersColors: {},
@@ -314,8 +314,7 @@ new Vue({
       this.xScale = d3.scaleTime().range([0, this.width]).domain([this.start, this.end]);
 
       // Prepare X axis
-      const xAxis = d3.axisBottom(this.xScale)
-        .tickSizeOuter(0);
+      const xAxis = d3.axisBottom(this.xScale);
       // Use days if the period covered is at least a day and a half
       if (this.end - this.start > 129_600_000)
         xAxis.tickFormat(d3.timeFormat("%d %b %y"))
@@ -347,15 +346,18 @@ new Vue({
         .attr("fill", "#008F11")
         .attr("y", 48);
 
+      const calStart = new Date(this.fullStart),
+        calEnd = new Date(this.fullEnd);
+      calStart.setDate(calStart.getDate() + 1);
+      calEnd.setDate(calEnd.getDate() - 1);
       calendar.append("g")
         .attr("class", "calendar-axis")
         .attr("transform", "translate(0, 28)")
         .call(d3.axisTop(this.calendarScale)
           .tickFormat(d3.timeFormat("%d %b %y"))
-          .tickSizeOuter(0)
-          .ticks(d3.unixDay.every(Math.trunc(
-            100 * d3.timeDay.range(this.fullStart, this.fullEnd).length / this.calendarWidth
-          )))
+          .tickValues(d3.unixDay.every(Math.round(
+            (d3.unixDay.range(this.fullStart, this.fullEnd).length + 1) / (Math.trunc(this.calendarWidth / 120) - 1)
+          )).range(calStart, calEnd))
         );
 
       calendar.append("rect")
@@ -464,7 +466,7 @@ new Vue({
               .datum(data)
               .attr("class", "area")
               .attr("fill", metric.color)
-              .attr("fill-opacity", 0.25)
+              .attr("fill-opacity", 0.35)
               .attr("d", d3.area()
                 .x(d => this.xScale(d.datetime))
                 .y0((height))
@@ -474,8 +476,7 @@ new Vue({
 
           // Draw Y axis
           const yAxis = d3.axisRight(yScale)
-            .tickFormat(d3.axisFormat(metric.unit))
-            .tickSizeOuter(0);
+            .tickFormat(d3.axisFormat(metric.unit));
           if (metricChoice === "n_processes")
             yAxis.tickValues(d3.range(0, yMax));
           else yAxis.ticks(height > 200 ? 8 : 4);
