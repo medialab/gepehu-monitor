@@ -1,6 +1,9 @@
 /* TODO
  * - use subprocess for processing data
  * - find better ways to handle hoverProcesses
+ * - add help modal with links to sourcecode etc
+ * - make README
+ * - split CSVs by month
 */
 d3.formatDefaultLocale({
   "decimal": ",",
@@ -21,15 +24,15 @@ d3.defaultColors = [
 
 d3.intFormat = d3.format(",d");
 d3.percentFormat = d3.format(".1%");
-d3.axisFormat = (unit) => {
+d3.axisFormat = unit => {
   if (unit === "%")
     return d3.format(".0%");
   else if (unit === "Mo")
     return d => d3.format(",d")(d).replace(" 000", " Go");
   return d => d3.intFormat(d) + " " + unit;
 };
-d3.minutize = (d) => d.toLocaleString('sv').replace(' ', 'T').slice(0, 16);
-d3.deminutize = (d) => new Date(d + ":00");
+d3.minutize = d => d.toLocaleString('sv').replace(' ', 'T').slice(0, 16);
+d3.deminutize = d => new Date(d + ":00");
 
 new Vue({
   el: "#dashboard",
@@ -99,7 +102,7 @@ new Vue({
       window.location.hash = this.url;
 
     // Download list of GPUs IDs and prepare data structure
-    d3.text("data/list").then((listGPUs) => {
+    d3.text("data/list").then(listGPUs => {
       listGPUs.trim().split("\n").forEach((gpuID, idx) => {
         this.gpus.push({
           id: gpuID,
@@ -121,11 +124,11 @@ new Vue({
       this.readUrl();
       // Select by default all GPUs if none set
       if (!this.gpusChoices.length)
-        for (var i = 0; i < this.gpus.length; i++)
+        for (let i = 0; i < this.gpus.length; i++)
           this.toggleGPU(i, true);
       // Defaults to only the last 15 days
       if (!this.minDate && !this.maxDate) {
-        var start = new Date();
+        const start = new Date();
         start.setDate(start.getDate() - 15);
         this.minDate = start;
       }
@@ -139,11 +142,10 @@ new Vue({
   methods: {
     // Read settings values from URL query arguments
     readUrl: function() {
-      var url = window.location.hash.slice(1),
-        aggregate = false,
-        d = new Date();
+      const url = window.location.hash.slice(1);
+      let aggregate = false;
       if (url && ~url.indexOf("&")) url.split("&").forEach(urlPiece => {
-        var [key, values] = urlPiece.split("=");
+        const [key, values] = urlPiece.split("=");
         if (key == "gpus" && values != "")
           values.split(",").forEach(v => this.toggleGPU(parseInt(v), true));
         else if (key == "aggregated")
@@ -194,11 +196,11 @@ new Vue({
         this.gpusToDo.push(gpu.id)
         fetch("data/" + gpu.id + ".csv.gz?" + (new Date().getTime()))
         .then(res => res.arrayBuffer())
-        .then((body) => {
+        .then(body => {
           // Decompress gzipped data
-          var res = pako.ungzip(body, {to: "string"});
+          const res = pako.ungzip(body, {to: "string"});
 
-          gpu.rows = d3.csvParse(res, (d, idx) => {
+          gpu.rows = d3.csvParse(res, d => {
             d.datetime = new Date(d.datetime);
             d.minute = d3.minutize(d.datetime);
             d.usage_percent = parseFloat(d.usage_percent) / 100;
@@ -214,7 +216,7 @@ new Vue({
             });
 
             // Keep maps of processes and metrics at each timestamp
-            var row_processes = d.processes.replace(/\//g, "/&#8203;").split("§").filter(x => x);
+            const row_processes = d.processes.replace(/\//g, "/&#8203;").split("§").filter(x => x);
             d.n_processes = row_processes.length;
             row_processes.forEach((p, i) => {
               if (!this.processes[d.minute])
@@ -240,7 +242,7 @@ new Vue({
     // Post process data when all GPUs' metrics collected
     prepareData: function() {
       // Evaluate complete time range
-      this.fullStart = d3.min(this.gpus.map((g) =>
+      this.fullStart = d3.min(this.gpus.map(g =>
         g.rows && g.rows.length ? new Date(g.rows[0].datetime) : new Date()
       ));
       this.fullEnd = new Date();
@@ -249,9 +251,9 @@ new Vue({
       this.users.sort();
       this.gpus.forEach(gpu =>
         gpu.rows.forEach(row =>
-          this.users.forEach(user => {
-            row["processes_by_" + user] = row.users.filter(u => (u === user)).length;
-          })
+          this.users.forEach(user =>
+            row["processes_by_" + user] = row.users.filter(u => u === user).length
+          )
         )
       );
       this.users.forEach((user, idx) =>
@@ -280,7 +282,7 @@ new Vue({
       this.end = new Date(this.maxDate || this.fullEnd);
 
       // Setup dimensions
-      var nbPlots = this.aggregateGPUs ? 1 : this.gpusChoices.length,
+      const nbPlots = this.aggregateGPUs ? 1 : this.gpusChoices.length,
         margin = {top: 20, right: 70, bottom: 30, left: 40, horiz: 70, vert: 30},
         calendarH = document.querySelector("nav").getBoundingClientRect().height,
         mainH = window.innerHeight - calendarH,
@@ -292,7 +294,7 @@ new Vue({
       this.gapX = this.width + margin.horiz;
 
       // Prepare svg
-      var svg = d3.select(".svg")
+      const svg = d3.select(".svg")
         .style("height", mainH + "px")
         .append("svg")
           .attr("width", svgW)
@@ -300,24 +302,19 @@ new Vue({
 
       // Position GPU labels on each column
       this.gpusChoices.forEach(idx => {
-        var xPos = margin.left + idx * (this.width + margin.horiz),
-          yPos = margin.top;
         this.gpus[idx].style = {
           "font-size": "14px",
           "background-color": this.gpus[idx].color,
-          top:  yPos + "px",
-          left: xPos + "px"
+          top: margin.top + "px",
+          left: (margin.left + idx * (this.width + margin.horiz)) + "px"
         };
       });
 
       // Compute X range
       this.xScale = d3.scaleTime().range([0, this.width]).domain([this.start, this.end]);
-      var xPosition = (d) => this.xScale(d3.min(
-        [this.end, d3.max([this.start, d.data ? d.data["datetime"] : d[key]])]
-      ));
 
       // Prepare X axis
-      var xAxis = d3.axisBottom(this.xScale)
+      const xAxis = d3.axisBottom(this.xScale)
         .tickSizeOuter(0);
       // Use days if the period covered is at least a day and a half
       if (this.end - this.start > 129_600_000)
@@ -333,7 +330,7 @@ new Vue({
       this.calendarWidth = svgW - margin.left - margin.right;
       this.calendarScale = d3.scaleTime().range([0, this.calendarWidth]).domain([this.fullStart, this.fullEnd]);
 
-      var calendar = d3.select(".calendar").append("svg")
+      const calendar = d3.select(".calendar").append("svg")
         .attr("width", svgW)
         .attr("height", calendarH)
         .append("g")
@@ -382,11 +379,11 @@ new Vue({
         .on("dblclick", this.resetZoom);
 
       // Prepare datasets to plot
-      var datasets = []
+      const datasets = []
       if (this.aggregateGPUs && this.gpusChoices.length > 1) {
         // Build aggregated data if required
         this.aggregatedGPU = {rows: [], rowsMap: []};
-        for (var rowIdx = 0; rowIdx < this.gpus[0].rows.length; rowIdx++) {
+        for (let rowIdx = 0; rowIdx < this.gpus[0].rows.length; rowIdx++) {
           row = {
             minute: this.gpus[0].rows[rowIdx].minute,
             datetime: this.gpus[0].rows[rowIdx].datetime,
@@ -398,44 +395,38 @@ new Vue({
             fan_speed_percent: d3.mean(this.gpusChoices.map(idx => this.gpus[idx].rows[rowIdx].fan_speed_percent)),
             n_processes: d3.sum(this.gpusChoices.map(idx => this.gpus[idx].rows[rowIdx].n_processes))
           };
-          this.users.forEach(user => {
-            row["processes_by_" + user] = d3.sum(this.gpusChoices.map(idx => this.gpus[idx].rows[rowIdx]["processes_by_" + user]));
-          });
+          this.users.forEach(user =>
+            row["processes_by_" + user] = d3.sum(this.gpusChoices.map(idx => this.gpus[idx].rows[rowIdx]["processes_by_" + user]))
+          );
           this.aggregatedGPU.rows.push(row);
           this.aggregatedGPU.rowsMap[row.minute] = row;
         }
         datasets.push(this.aggregatedGPU.rows);
-      } else {
-        this.gpusChoices.forEach((idx) => {
-          datasets.push(this.gpus[idx].rows);
-        });
-      }
+      } else this.gpusChoices.forEach(idx => datasets.push(this.gpus[idx].rows));
 
       // Plot individual metrics as rows
       this.metricsChoices.forEach((metricChoice, metric_idx) => {
 
-        var metric = this.metrics.filter(x => x.id == metricChoice)[0],
-          percent = ~metricChoice.indexOf("_percent");
+        const metric = this.metrics.filter(x => x.id == metricChoice)[0];
 
         // Compute Y range
-        var yMin = 0, yMax = 1;
-        if (!percent) datasets.forEach(rows => {
-          var gpuMax = d3.max(rows.map(d => d[metricChoice]));
-          yMax = d3.max([yMax, gpuMax]);
-        });
+        let yMax = 1;
+        if (!~metricChoice.indexOf("_percent")) datasets.forEach(rows =>
+          yMax = d3.max([yMax, d3.max(rows.map(d => d[metricChoice]))])
+        );
         yMax *= 1.08;
-        var yScale = d3.scaleLinear().range([height, 0]).domain([yMin, yMax]);
+        const yScale = d3.scaleLinear().range([height, 0]).domain([0, yMax]);
 
         // Plot each GPU as a column
         datasets.forEach((rows, gpu_idx) => {
 
-          var rowsMap = this.aggregateGPUs ? this.aggregatedGPU.rowsMap : this.gpus[gpu_idx].rowsMap;
+          const rowsMap = this.aggregateGPUs ? this.aggregatedGPU.rowsMap : this.gpus[gpu_idx].rowsMap;
 
           // Filter zoomed out data
-          var data = rows.filter((d) => d.datetime >= this.start && d.datetime <= this.end);
+          const data = rows.filter(d => d.datetime >= this.start && d.datetime <= this.end);
 
           // Create SVG group for current plot and position it in the whole SVG
-          var g = svg.append("g")
+          const g = svg.append("g")
             .attr("transform", "translate(" + (margin.left + gpu_idx * (this.width + margin.horiz)) + "," + (margin.top + metric_idx * (height + margin.vert)) + ")");
 
           // Plot processes as a stacked histogram
@@ -450,7 +441,7 @@ new Vue({
               ).enter().append("path")
                 .attr("fill", d => this.usersColors[d.key.replace(/processes_by_/, "")])
                 .attr("d", d3.area()
-                  .x(xPosition)
+                  .x(d => this.xScale(d3.min([this.end, d3.max([this.start, d.data["datetime"]])])))
                   .y0(d => yScale(d[0]))
                   .y1(d => yScale(d[1]))
                 );
@@ -465,8 +456,8 @@ new Vue({
               .attr("stroke", metric.color)
               .attr("stroke-width", 0.5)
               .attr("d", d3.line()
-                .x((d) => this.xScale(d))
-                .y((d) => yScale((rowsMap[d3.minutize(d)] || {})[metricChoice] || 0))
+                .x(d => this.xScale(d))
+                .y(d => yScale((rowsMap[d3.minutize(d)] || {})[metricChoice] || 0))
               );
 
             g.append("path")
@@ -475,14 +466,14 @@ new Vue({
               .attr("fill", metric.color)
               .attr("fill-opacity", 0.25)
               .attr("d", d3.area()
-                .x((d) => this.xScale(d.datetime))
+                .x(d => this.xScale(d.datetime))
                 .y0((height))
-                .y1((d) => yScale(d[metricChoice]))
+                .y1(d => yScale(d[metricChoice]))
               );
           }
 
           // Draw Y axis
-          var yAxis = d3.axisRight(yScale)
+          const yAxis = d3.axisRight(yScale)
             .tickFormat(d3.axisFormat(metric.unit))
             .tickSizeOuter(0);
           if (metricChoice === "n_processes")
@@ -500,7 +491,7 @@ new Vue({
             .call(xAxis);
 
           // Draw hoverable and brushable surfaces
-          var interactions = g.append("g");
+          const interactions = g.append("g");
 
           interactions.append("rect")
             .attr("class", "brush")
@@ -545,12 +536,12 @@ new Vue({
     hover: function(event) {
       if (!event) return;
 
-      var gpu_idx = event.target.attributes.gpu_idx.value,
+      const gpu_idx = event.target.attributes.gpu_idx.value,
         brushX = event.pageX - this.svgX - gpu_idx * this.gapX;
 
       // Handle movements while zoom-brushing
       if (this.brushing != null) {
-        var width;
+        let width;
         if (this.brushing === gpu_idx) {
           width = brushX - this.brushX;
           if (width > this.width - this.brushX)
@@ -568,7 +559,7 @@ new Vue({
           .attr("width", Math.abs(width));
 
         // Update calendar brush position
-        var calBrushX = this.calendarScale(this.xScale.invert(this.brushX)),
+        const calBrushX = this.calendarScale(this.xScale.invert(this.brushX)),
           calWidth = this.calendarScale(this.xScale.invert(this.brushX + width)) - calBrushX;
         d3.select("rect.calendar-brush")
           .attr("x", calWidth >= 0 ? calBrushX : calBrushX + calWidth)
@@ -587,14 +578,14 @@ new Vue({
         return this.clearTooltip();
 
       // Display tooltip
-      var dat = this.xScale.invert(brushX),
+      const dat = this.xScale.invert(brushX),
         minute = d3.minutize(dat),
         row = (this.aggregateGPUs ? this.aggregatedGPU : this.gpus[gpu_idx]).rowsMap[minute];
 
       this.hoverDate = d3.timeFormat("%b %d %Y %H:%M")(dat);
       this.hoverText = [];
-      this.metricsChoices.forEach((metricChoice, metric_idx) => {
-        var metric = this.metrics.filter(x => x.id == metricChoice)[0],
+      this.metricsChoices.forEach(metricChoice => {
+        const metric = this.metrics.filter(x => x.id == metricChoice)[0],
           percent = ~metricChoice.indexOf("_percent");
         this.hoverText.push({
           metric: metric.name,
@@ -604,7 +595,7 @@ new Vue({
       });
       this.hoverProcesses = (this.processes[minute] || []).filter(p => ~this.gpusChoices.indexOf(p.gpu_index)).sort((a, b) => a.gpu.localeCompare(b.gpu));
 
-      var boxHeight = 45 + 21 * this.metricsChoices.length;
+      const boxHeight = 45 + 21 * this.metricsChoices.length;
       d3.select(".tooltipBox")
         .style("left", event.pageX - 120 + "px")
         .style("top", event.pageY + (window.innerHeight - event.pageY > (30 + boxHeight) ? 30 : -(30 + boxHeight)) + "px")
@@ -613,7 +604,7 @@ new Vue({
     // Initiate zoom-brushing on click down
     startBrush: function(event) {
       this.brushing = event.target.attributes.gpu_idx.value;
-      var brushX = event.pageX - this.svgX - this.brushing * this.gapX;
+      const brushX = event.pageX - this.svgX - this.brushing * this.gapX;
       if (brushX < 0 || brushX > this.width) return this.brushing = null;
       this.brushX = brushX;
       d3.selectAll("rect.interactions").style("cursor", "e-resize");
@@ -621,22 +612,22 @@ new Vue({
     // Complete zoom-brushing on click up
     stopBrush: function() {
       if (!this.brushing) return;
-      var brush = document.querySelector("rect.brush"),
+      const brush = document.querySelector("rect.brush"),
         x = parseFloat(brush.getAttribute("x")),
         width = parseFloat(brush.getAttribute("width"));
 
       // Evaluate zoom period datetimes from recorded positions
-      var minDate = this.xScale.invert(x);
+      let minDate = this.xScale.invert(x);
       if (minDate <= this.start)
         minDate = this.start;
-      var maxDate = this.xScale.invert(x + parseFloat(brush.getAttribute("width")));
+      let maxDate = this.xScale.invert(x + parseFloat(brush.getAttribute("width")));
       if (maxDate >= this.end)
         maxDate = this.end;
       if (maxDate >= this.fullEnd)
         maxDate = null;
 
       // Do not zoom when selection is too small (<5px) or too short (<30min)
-      var duration = (maxDate || this.end) - (minDate || this.start);
+      const duration = (maxDate || this.end) - (minDate || this.start);
       if (width < 5 || duration < 1_800_000) {
         d3.selectAll("rect.brush").attr("width", 2);
       } else {
@@ -651,7 +642,7 @@ new Vue({
     },
     // Initiate zoom-brushing from calendar bar on click down
     startCalendarBrush: function(event) {
-      var calBrush = document.querySelector("rect.calendar-brush"),
+      const calBrush = document.querySelector("rect.calendar-brush"),
         x = parseFloat(calBrush.getAttribute("x")),
         w = parseFloat(calBrush.getAttribute("width")),
         brushX = event.pageX - this.svgX;
@@ -671,11 +662,11 @@ new Vue({
     hoverCalendar: function(event) {
       if (!event) return;
 
-      var brushX = event.pageX - this.svgX;
+      const brushX = event.pageX - this.svgX;
 
       // Handle movements while zoom-brushing
       if (this.calendarBrushing) {
-        var width = brushX - this.calendarBrushX;
+        let width = brushX - this.calendarBrushX;
         if (width > this.calendarWidth - this.calendarBrushX)
           width = this.calendarWidth - this.calendarBrushX
         else if (width < -this.calendarBrushX)
@@ -688,7 +679,7 @@ new Vue({
           .attr("width", Math.abs(width));
 
         // Update brush position on all plots as well
-        var regBrushX = this.xScale(this.calendarScale.invert(this.calendarBrushX)),
+        const regBrushX = this.xScale(this.calendarScale.invert(this.calendarBrushX)),
           regBrushEnd = this.xScale(this.calendarScale.invert(brushX)),
           regWidth = regBrushEnd - regBrushX;
         d3.selectAll("rect.brush")
@@ -707,7 +698,7 @@ new Vue({
 
       // Adjust cursor's icon otherwise when getting close to brush's edges
       } else {
-        var calBrush = document.querySelector("rect.calendar-brush"),
+        const calBrush = document.querySelector("rect.calendar-brush"),
           x = parseFloat(calBrush.getAttribute("x")),
           w = parseFloat(calBrush.getAttribute("width")),
           y = event.pageY;
@@ -730,20 +721,20 @@ new Vue({
     // Complete zoom-brushing from calendar bar on click up
     stopCalendarBrush: function() {
       if (!this.calendarBrushing) return;
-      var brush = document.querySelector("rect.calendar-brush"),
+      const brush = document.querySelector("rect.calendar-brush"),
         x = parseFloat(brush.getAttribute("x")),
         width = parseFloat(brush.getAttribute("width"));
 
       // Evaluate zoom period datetimes from recorded positions
-      var minDate = this.calendarScale.invert(x);
+      let minDate = this.calendarScale.invert(x);
       if (minDate <= this.fullStart)
         minDate = this.fullStart;
-      var maxDate = this.calendarScale.invert(x + parseFloat(brush.getAttribute("width")));
+      let maxDate = this.calendarScale.invert(x + parseFloat(brush.getAttribute("width")));
       if (maxDate >= this.fullEnd)
         maxDate = null;
 
       // Do not zoom when selection is too small (<5px) or too short (<30min)
-      var duration = (maxDate || this.fullEnd) - (minDate || this.fullStart);
+      const duration = (maxDate || this.fullEnd) - (minDate || this.fullStart);
       if (width >= 5 && duration >= 1_800_000) {
         d3.selectAll("rect.brush").attr("width", 0);
         if (!this.loading) this.loading = 0.2;
