@@ -649,6 +649,12 @@ new Vue({
         zoomFactor = (direction === 1 ? 1 / zoomRatio : zoomRatio),
         zoomCenter = event.pageX - this.svgX - this.brushing * this.gapX;
       if ((direction == 1 && this.end - this.start < 1_800_000) || (direction == -1 && this.start == this.fullStart && this.end == this.fullEnd )) return;
+
+      if (direction === 1)
+        d3.selectAll("rect.brush")
+          .attr("x", zoomCenter * (1 - zoomFactor))
+          .attr("width", this.width * zoomFactor);
+
       this.minDate = this.xScale.invert(zoomCenter * (1 - zoomFactor));
       this.maxDate = this.xScale.invert(this.width * zoomFactor + zoomCenter * (1 - zoomFactor));
       if (this.minDate < this.fullStart)
