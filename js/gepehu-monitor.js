@@ -34,6 +34,20 @@ d3.axisFormat = unit => {
 d3.minutize = d => d.toLocaleString('sv').replace(' ', 'T').slice(0, 16);
 d3.deminutize = d => new Date(d + ":00");
 
+d3.combinations = (arr, n, prefix=[]) => {
+  if (n == 0) return [prefix];
+  return arr.flatMap((v, i) =>
+    d3.combinations(arr.slice(i+1), n-1, [...prefix, v])
+  );
+};
+d3.allCombinations = (arr) => {
+  let result = [arr];
+  for (let i = 2; i < arr.length; i++) {
+    result = result.concat(d3.combinations(arr, i))
+  }
+  return result;
+};
+
 new Vue({
   el: "#dashboard",
   data: {
@@ -67,7 +81,7 @@ new Vue({
   computed: {
     // List of user toggled GPUs
     gpusChoices: function() {
-      return this.gpus.filter(g => g.selected).map(g => g.index);
+      return this.gpus.filter(g => g.selected).map(g => g.index).sort();
     },
     // List of user toggled metrics
     metricsChoices: function() {
@@ -260,6 +274,31 @@ new Vue({
         this.usersColors[user] = d3.defaultColors[idx + this.gpus.length]
       );
 
+      // Pre-build aggregated data for all combinations
+      this.aggregatedGPU = {};
+      d3.allCombinations(this.gpus.map(g => g.index)).forEach(combo => {
+        const comboKey = combo.join(",");
+        this.aggregatedGPU[comboKey] = {rows: [], rowsMap: []};
+        for (let rowIdx = 0; rowIdx < this.gpus[0].rows.length; rowIdx++) {
+          row = {
+            minute: this.gpus[0].rows[rowIdx].minute,
+            datetime: this.gpus[0].rows[rowIdx].datetime,
+            usage_percent: d3.mean(combo.map(idx => this.gpus[idx].rows[rowIdx].usage_percent)),
+            memory_percent: d3.mean(combo.map(idx => this.gpus[idx].rows[rowIdx].memory_percent)),
+            memory: d3.sum(combo.map(idx => this.gpus[idx].rows[rowIdx].memory)),
+            energy: d3.sum(combo.map(idx => this.gpus[idx].rows[rowIdx].energy)),
+            temperature: d3.mean(combo.map(idx => this.gpus[idx].rows[rowIdx].temperature)),
+            fan_speed_percent: d3.mean(combo.map(idx => this.gpus[idx].rows[rowIdx].fan_speed_percent)),
+            n_processes: d3.sum(combo.map(idx => this.gpus[idx].rows[rowIdx].n_processes))
+          };
+          this.users.forEach(user =>
+            row["processes_by_" + user] = d3.sum(combo.map(idx => this.gpus[idx].rows[rowIdx]["processes_by_" + user]))
+          );
+          this.aggregatedGPU[comboKey].rows.push(row);
+          this.aggregatedGPU[comboKey].rowsMap[row.minute] = row;
+        }
+      });
+
       // Always draw plots on first load or refresh them if required
       this.draw(1 - this.loading);
     },
@@ -319,7 +358,7 @@ new Vue({
       if (this.end - this.start > 129_600_000)
         xAxis.tickFormat(d3.timeFormat("%d %b %y"))
           .ticks(d3.unixDay.every(Math.max(1, Math.trunc(
-            150 * d3.timeDay.range(this.start, this.end).length / this.width
+            175 * d3.timeDay.range(this.start, this.end).length / this.width
           ))));
       // Use hour:minutes otherwise
       else xAxis.tickFormat(d3.timeFormat("%H:%M"))
@@ -382,29 +421,9 @@ new Vue({
 
       // Prepare datasets to plot
       const datasets = []
-      if (this.aggregateGPUs && this.gpusChoices.length > 1) {
-        // Build aggregated data if required
-        this.aggregatedGPU = {rows: [], rowsMap: []};
-        for (let rowIdx = 0; rowIdx < this.gpus[0].rows.length; rowIdx++) {
-          row = {
-            minute: this.gpus[0].rows[rowIdx].minute,
-            datetime: this.gpus[0].rows[rowIdx].datetime,
-            usage_percent: d3.mean(this.gpusChoices.map(idx => this.gpus[idx].rows[rowIdx].usage_percent)),
-            memory_percent: d3.mean(this.gpusChoices.map(idx => this.gpus[idx].rows[rowIdx].memory_percent)),
-            memory: d3.sum(this.gpusChoices.map(idx => this.gpus[idx].rows[rowIdx].memory)),
-            energy: d3.sum(this.gpusChoices.map(idx => this.gpus[idx].rows[rowIdx].energy)),
-            temperature: d3.mean(this.gpusChoices.map(idx => this.gpus[idx].rows[rowIdx].temperature)),
-            fan_speed_percent: d3.mean(this.gpusChoices.map(idx => this.gpus[idx].rows[rowIdx].fan_speed_percent)),
-            n_processes: d3.sum(this.gpusChoices.map(idx => this.gpus[idx].rows[rowIdx].n_processes))
-          };
-          this.users.forEach(user =>
-            row["processes_by_" + user] = d3.sum(this.gpusChoices.map(idx => this.gpus[idx].rows[rowIdx]["processes_by_" + user]))
-          );
-          this.aggregatedGPU.rows.push(row);
-          this.aggregatedGPU.rowsMap[row.minute] = row;
-        }
-        datasets.push(this.aggregatedGPU.rows);
-      } else this.gpusChoices.forEach(idx => datasets.push(this.gpus[idx].rows));
+      if (this.aggregateGPUs && this.gpusChoices.length > 1)
+        datasets.push(this.aggregatedGPU[this.gpusChoices.join(",")].rows);
+      else this.gpusChoices.forEach(idx => datasets.push(this.gpus[idx].rows));
 
       // Plot individual metrics as rows
       this.metricsChoices.forEach((metricChoice, metric_idx) => {
@@ -422,7 +441,7 @@ new Vue({
         // Plot each GPU as a column
         datasets.forEach((rows, gpu_idx) => {
 
-          const rowsMap = this.aggregateGPUs ? this.aggregatedGPU.rowsMap : this.gpus[gpu_idx].rowsMap;
+          const rowsMap = this.aggregateGPUs ? this.aggregatedGPU[this.gpusChoices.join(",")].rowsMap : this.gpus[gpu_idx].rowsMap;
 
           // Filter zoomed out data
           const data = rows.filter(d => d.datetime >= this.start && d.datetime <= this.end);
@@ -582,7 +601,7 @@ new Vue({
       // Display tooltip
       const dat = this.xScale.invert(brushX),
         minute = d3.minutize(dat),
-        row = (this.aggregateGPUs ? this.aggregatedGPU : this.gpus[gpu_idx]).rowsMap[minute];
+        row = (this.aggregateGPUs ? this.aggregatedGPU[this.gpusChoices.join(",")] : this.gpus[gpu_idx]).rowsMap[minute];
 
       this.hoverDate = d3.timeFormat("%b %d %Y %H:%M")(dat);
       this.hoverText = [];
