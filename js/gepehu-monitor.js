@@ -48,6 +48,28 @@ d3.allCombinations = (arr) => {
   return result;
 };
 
+function useWebWorker(script, inputData, callback) {
+  const worker_blob = new Blob([script], { type: "application/javascript" });
+  const worker_url = URL.createObjectURL(worker_blob);
+  const worker = new Worker(worker_url);
+  worker.onmessage = ({ data }) => {
+    callback(data);
+    worker.terminate();
+  };
+  worker.postMessage(inputData);
+};
+
+function uncompress(compressed, callback) {
+  useWebWorker(`
+    importScripts("${window.location.origin}/js/pako.min.js");
+    self.onmessage = async (evt) => {
+      const file = evt.data;
+      const decompressed = pako.ungzip(file, {to: "string"});
+      self.postMessage(decompressed);
+    };
+  `, compressed, callback);
+};
+
 new Vue({
   el: "#dashboard",
   data: {
@@ -210,47 +232,48 @@ new Vue({
         this.gpusToDo.push(gpu.id)
         fetch("data/" + gpu.id + ".csv.gz?" + (new Date().getTime()))
         .then(res => res.arrayBuffer())
-        .then(body => {
+        .then(body =>
           // Decompress gzipped data
-          const res = pako.ungzip(body, {to: "string"});
+          uncompress(body, res => {
 
-          gpu.rows = d3.csvParse(res, d => {
-            d.datetime = new Date(d.datetime);
-            d.minute = d3.minutize(d.datetime);
-            d.usage_percent = parseFloat(d.usage_percent) / 100;
-            d.memory_percent = parseFloat(d.memory_percent) / 100;
-            d.memory = parseInt(d.memory);
-            d.energy = parseInt(d.energy);
-            d.temperature = parseInt(d.temperature);
-            d.fan_speed_percent = parseInt(d.fan_speed) / 100;
-            d.users = d.users.split("§").filter(x => x);
-            d.users.forEach(u => {
-              if (!~this.users.indexOf(u))
-                this.users.push(u);
-            });
-
-            // Keep maps of processes and metrics at each timestamp
-            const row_processes = d.processes.replace(/\//g, "/&#8203;").split("§").filter(x => x);
-            d.n_processes = row_processes.length;
-            row_processes.forEach((p, i) => {
-              if (!this.processes[d.minute])
-                this.processes[d.minute] = [];
-              this.processes[d.minute].push({
-                gpu: d.gpu_name,
-                gpu_index: gpu.index,
-                gpu_color: gpu.color,
-                user: d.users[i],
-                command: p
+            gpu.rows = d3.csvParse(res, d => {
+              d.datetime = new Date(d.datetime);
+              d.minute = d3.minutize(d.datetime);
+              d.usage_percent = parseFloat(d.usage_percent) / 100;
+              d.memory_percent = parseFloat(d.memory_percent) / 100;
+              d.memory = parseInt(d.memory);
+              d.energy = parseInt(d.energy);
+              d.temperature = parseInt(d.temperature);
+              d.fan_speed_percent = parseInt(d.fan_speed) / 100;
+              d.users = d.users.split("§").filter(x => x);
+              d.users.forEach(u => {
+                if (!~this.users.indexOf(u))
+                  this.users.push(u);
               });
+
+              // Keep maps of processes and metrics at each timestamp
+              const row_processes = d.processes.replace(/\//g, "/&#8203;").split("§").filter(x => x);
+              d.n_processes = row_processes.length;
+              row_processes.forEach((p, i) => {
+                if (!this.processes[d.minute])
+                  this.processes[d.minute] = [];
+                this.processes[d.minute].push({
+                  gpu: d.gpu_name,
+                  gpu_index: gpu.index,
+                  gpu_color: gpu.color,
+                  user: d.users[i],
+                  command: p
+                });
+              });
+              gpu.rowsMap[d.minute] = d;
+
+              return d;
             });
-            gpu.rowsMap[d.minute] = d;
 
-            return d;
-          });
-
-          gpu.name = gpu.rows[0].gpu_name;
-          this.gpusDone.push(gpu.id);
-        });
+            gpu.name = gpu.rows[0].gpu_name;
+            this.gpusDone.push(gpu.id);
+          })
+        );
       });
     },
     // Post process data when all GPUs' metrics collected
@@ -279,6 +302,7 @@ new Vue({
       d3.allCombinations(this.gpus.map(g => g.index)).forEach(combo => {
         const comboKey = combo.join(",");
         this.aggregatedGPU[comboKey] = {rows: [], rowsMap: []};
+        // TODO: fix by using rowsMap[minute] instead
         for (let rowIdx = 0; rowIdx < this.gpus[0].rows.length; rowIdx++) {
           row = {
             minute: this.gpus[0].rows[rowIdx].minute,
