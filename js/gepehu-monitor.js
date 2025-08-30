@@ -1,4 +1,5 @@
 /* TODO
+ * - fix aggregated data build to handle potentially missing lines between different gpus
  * - find better ways to handle hoverProcesses
  * - add help modal with links to sourcecode etc
  * - make README
@@ -463,8 +464,8 @@ new Vue({
       // Prepare datasets to plot
       const datasets = []
       if (this.aggregateGPUs && this.gpusChoices.length > 1)
-        datasets.push(this.aggregatedGPU[this.gpusChoices.join(",")].rows);
-      else this.gpusChoices.forEach(idx => datasets.push(this.gpus[idx].rows));
+        datasets.push(this.aggregatedGPU[this.gpusChoices.join(",")]);
+      else this.gpusChoices.forEach(idx => datasets.push(this.gpus[idx]));
 
       // Plot individual metrics as rows
       this.metricsChoices.forEach((metricChoice, metric_idx) => {
@@ -473,19 +474,16 @@ new Vue({
 
         // Compute Y range
         let yMax = 1;
-        if (!~metricChoice.indexOf("_percent")) datasets.forEach(rows =>
-          yMax = d3.max([yMax, d3.max(rows.map(d => d[metricChoice]))])
+        if (!~metricChoice.indexOf("_percent")) datasets.forEach(gpu =>
+          yMax = d3.max([yMax, d3.max(gpu.rows.map(d => d[metricChoice]))])
         );
         yMax *= 1.08;
         const yScale = d3.scaleLinear().range([height, 0]).domain([0, yMax]);
 
         // Plot each GPU as a column
-        datasets.forEach((rows, gpu_idx) => {
-
-          const rowsMap = this.aggregateGPUs ? this.aggregatedGPU[this.gpusChoices.join(",")].rowsMap : this.gpus[gpu_idx].rowsMap;
-
+        datasets.forEach((gpu, gpu_idx) => {
           // Filter zoomed out data
-          const data = rows.filter(d => d.datetime >= this.start && d.datetime <= this.end);
+          const data = gpu.rows.filter(d => d.datetime >= this.start && d.datetime <= this.end);
 
           // Create SVG group for current plot and position it in the whole SVG
           const g = svg.append("g")
@@ -519,7 +517,7 @@ new Vue({
               .attr("stroke-width", 0.5)
               .attr("d", d3.line()
                 .x(d => this.xScale(d))
-                .y(d => yScale((rowsMap[d3.minutize(d)] || {})[metricChoice] || 0))
+                .y(d => yScale((gpu.rowsMap[d3.minutize(d)] || {})[metricChoice] || 0))
               );
 
             g.append("path")
@@ -642,7 +640,7 @@ new Vue({
       // Display tooltip
       const dat = this.xScale.invert(brushX),
         minute = d3.minutize(dat),
-        row = (this.aggregateGPUs ? this.aggregatedGPU[this.gpusChoices.join(",")] : this.gpus[gpu_idx]).rowsMap[minute];
+        row = (this.aggregateGPUs ? this.aggregatedGPU[this.gpusChoices.join(",")] : this.gpus[this.gpusChoices[gpu_idx]]).rowsMap[minute];
 
       this.hoverDate = d3.timeFormat("%b %d %Y %H:%M")(dat);
       this.hoverText = [];
