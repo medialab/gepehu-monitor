@@ -1,5 +1,4 @@
 /* TODO
- * - use subprocess for processing data
  * - find better ways to handle hoverProcesses
  * - add help modal with links to sourcecode etc
  * - make README
@@ -68,6 +67,42 @@ function uncompress(compressed, callback) {
       self.postMessage(decompressed);
     };
   `, compressed, callback);
+};
+
+function buildAggregatedData(gpus, callback) {
+  useWebWorker(`
+    self.onmessage = async (evt) => {
+      const {gpus, users, combinations} = evt.data;
+      const aggregatedGPU = {};
+      const sum = arr => arr.reduce((partial, next) => partial + next, 0);
+      const mean = arr => sum(arr) / arr.length;
+      // Build aggregated data for all combinations of selected GPUs
+      combinations.forEach(combo => {
+        const comboKey = combo.join(",");
+        aggregatedGPU[comboKey] = {rows: [], rowsMap: []};
+        // TODO: fix by using rowsMap[minute] instead
+        for (let rowIdx = 0; rowIdx < gpus[0].rows.length; rowIdx++) {
+          row = {
+            minute: gpus[0].rows[rowIdx].minute,
+            datetime: gpus[0].rows[rowIdx].datetime,
+            usage_percent: mean(combo.map(idx => gpus[idx].rows[rowIdx].usage_percent)),
+            memory_percent: mean(combo.map(idx => gpus[idx].rows[rowIdx].memory_percent)),
+            memory: sum(combo.map(idx => gpus[idx].rows[rowIdx].memory)),
+            energy: sum(combo.map(idx => gpus[idx].rows[rowIdx].energy)),
+            temperature: mean(combo.map(idx => gpus[idx].rows[rowIdx].temperature)),
+            fan_speed_percent: mean(combo.map(idx => gpus[idx].rows[rowIdx].fan_speed_percent)),
+            n_processes: sum(combo.map(idx => gpus[idx].rows[rowIdx].n_processes))
+          };
+          users.forEach(user =>
+            row["processes_by_" + user] = sum(combo.map(idx => gpus[idx].rows[rowIdx]["processes_by_" + user]))
+          );
+          aggregatedGPU[comboKey].rows.push(row);
+          aggregatedGPU[comboKey].rowsMap[row.minute] = row;
+        }
+      });
+      self.postMessage(aggregatedGPU);
+    };
+  `, gpus, callback);
 };
 
 new Vue({
@@ -286,6 +321,10 @@ new Vue({
 
       // Prepare list of all users
       this.users.sort();
+      this.users.forEach((user, idx) =>
+        this.usersColors[user] = d3.defaultColors[idx + this.gpus.length]
+      );
+
       this.gpus.forEach(gpu =>
         gpu.rows.forEach(row =>
           this.users.forEach(user =>
@@ -293,38 +332,16 @@ new Vue({
           )
         )
       );
-      this.users.forEach((user, idx) =>
-        this.usersColors[user] = d3.defaultColors[idx + this.gpus.length]
-      );
 
-      // Pre-build aggregated data for all combinations
-      this.aggregatedGPU = {};
-      d3.allCombinations(this.gpus.map(g => g.index)).forEach(combo => {
-        const comboKey = combo.join(",");
-        this.aggregatedGPU[comboKey] = {rows: [], rowsMap: []};
-        // TODO: fix by using rowsMap[minute] instead
-        for (let rowIdx = 0; rowIdx < this.gpus[0].rows.length; rowIdx++) {
-          row = {
-            minute: this.gpus[0].rows[rowIdx].minute,
-            datetime: this.gpus[0].rows[rowIdx].datetime,
-            usage_percent: d3.mean(combo.map(idx => this.gpus[idx].rows[rowIdx].usage_percent)),
-            memory_percent: d3.mean(combo.map(idx => this.gpus[idx].rows[rowIdx].memory_percent)),
-            memory: d3.sum(combo.map(idx => this.gpus[idx].rows[rowIdx].memory)),
-            energy: d3.sum(combo.map(idx => this.gpus[idx].rows[rowIdx].energy)),
-            temperature: d3.mean(combo.map(idx => this.gpus[idx].rows[rowIdx].temperature)),
-            fan_speed_percent: d3.mean(combo.map(idx => this.gpus[idx].rows[rowIdx].fan_speed_percent)),
-            n_processes: d3.sum(combo.map(idx => this.gpus[idx].rows[rowIdx].n_processes))
-          };
-          this.users.forEach(user =>
-            row["processes_by_" + user] = d3.sum(combo.map(idx => this.gpus[idx].rows[rowIdx]["processes_by_" + user]))
-          );
-          this.aggregatedGPU[comboKey].rows.push(row);
-          this.aggregatedGPU[comboKey].rowsMap[row.minute] = row;
-        }
+      buildAggregatedData({
+        gpus: this.gpus,
+        users: this.users,
+        combinations: d3.allCombinations(this.gpus.map(g => g.index)),
+      }, aggregatedData => {
+        this.aggregatedGPU = aggregatedData;
+        // Always draw plots on first load or refresh them if required
+        this.draw(1 - this.loading);
       });
-
-      // Always draw plots on first load or refresh them if required
-      this.draw(1 - this.loading);
     },
     // Refresh plots if required
     draw: function(lazy) {
