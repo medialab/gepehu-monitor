@@ -257,6 +257,8 @@ new Vue({
       // Do not refresh data if current zooming action
       if (this.brushing != null) return;
 
+      if (!this.loading && !this.maxDate) this.loading = 0.2;
+
       // Cleanup preexisting data
       if (this.gpusToDo.length) {
         if (this.gpusToDo.length !== this.gpusDone.length) return;
