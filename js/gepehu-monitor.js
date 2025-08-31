@@ -61,7 +61,8 @@ function useWebWorker(script, inputData, callback) {
 
 function uncompress(compressed, callback) {
   useWebWorker(`
-    importScripts("${window.location.origin}/js/pako.min.js");
+    let rootUrl = "${window.location.href}".replace(/#.*$/, "");
+    importScripts(rootUrl + "/js/pako.min.js");
     self.onmessage = async (evt) => {
       const file = evt.data;
       const decompressed = pako.ungzip(file, {to: "string"});
