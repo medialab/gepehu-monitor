@@ -641,7 +641,7 @@ new Vue({
       // Display tooltip
       const dat = this.xScale.invert(brushX),
         minute = d3.minutize(dat),
-        row = (this.aggregateGPUs ? this.aggregatedGPU[this.gpusChoices.join(",")] : this.gpus[this.gpusChoices[gpu_idx]]).rowsMap[minute];
+        row = (this.aggregateGPUs && this.gpusChoices.length > 1 ? this.aggregatedGPU[this.gpusChoices.join(",")] : this.gpus[this.gpusChoices[gpu_idx]]).rowsMap[minute];
 
       this.hoverDate = d3.timeFormat("%b %d %Y %H:%M")(dat);
       this.hoverText = [];
