@@ -1,6 +1,7 @@
 /* TODO
+ * - fix no GPU selected breaks app
  * - fix wheelzoom on split view
- * - fix aggregated data build to handle potentially missing lines between different gpus
+ * - optimize more by moving also csv parsing to worker
  * - find better ways to handle hoverProcesses
  * - add help modal with links to sourcecode etc
  * - make README
@@ -75,33 +76,38 @@ function uncompress(compressed, callback) {
 function buildAggregatedData(gpus, callback) {
   useWebWorker(`
     self.onmessage = async (evt) => {
-      const {gpus, users, combinations} = evt.data;
+      const {gpus, users, minutes, combinations} = evt.data;
       const aggregatedGPU = {};
       const sum = arr => arr.reduce((partial, next) => partial + next, 0);
       const mean = arr => sum(arr) / arr.length;
+      const minutize = d => d.toLocaleString('sv').replace(' ', 'T').slice(0, 16);
       // Build aggregated data for all combinations of selected GPUs
       combinations.forEach(combo => {
         const comboKey = combo.join(",");
         aggregatedGPU[comboKey] = {rows: [], rowsMap: []};
-        // TODO: fix by using rowsMap[minute] instead
-        for (let rowIdx = 0; rowIdx < gpus[0].rows.length; rowIdx++) {
+        minutes.forEach(dat => {
+          const minute = minutize(dat);
+          const values = combo
+            .filter(idx => gpus[idx].rowsMap[minute] !== undefined)
+            .map(idx => gpus[idx].rowsMap[minute]);
+          if (!values.length) return;
           row = {
-            minute: gpus[0].rows[rowIdx].minute,
-            datetime: gpus[0].rows[rowIdx].datetime,
-            usage_percent: mean(combo.map(idx => gpus[idx].rows[rowIdx].usage_percent)),
-            memory_percent: mean(combo.map(idx => gpus[idx].rows[rowIdx].memory_percent)),
-            memory: sum(combo.map(idx => gpus[idx].rows[rowIdx].memory)),
-            energy: sum(combo.map(idx => gpus[idx].rows[rowIdx].energy)),
-            temperature: mean(combo.map(idx => gpus[idx].rows[rowIdx].temperature)),
-            fan_speed_percent: mean(combo.map(idx => gpus[idx].rows[rowIdx].fan_speed_percent)),
-            n_processes: sum(combo.map(idx => gpus[idx].rows[rowIdx].n_processes))
+            datetime: dat,
+            minute: minute,
+            usage_percent: mean(values.map(x => x.usage_percent)),
+            memory_percent: mean(values.map(x => x.memory_percent)),
+            memory: sum(values.map(x => x.memory)),
+            energy: sum(values.map(x => x.energy)),
+            temperature: mean(values.map(x => x.temperature)),
+            fan_speed_percent: mean(values.map(x => x.fan_speed_percent)),
+            n_processes: sum(values.map(x => x.n_processes))
           };
           users.forEach(user =>
-            row["processes_by_" + user] = sum(combo.map(idx => gpus[idx].rows[rowIdx]["processes_by_" + user]))
+            row["processes_by_" + user] = sum(values.map(x => x["processes_by_" + user]))
           );
           aggregatedGPU[comboKey].rows.push(row);
           aggregatedGPU[comboKey].rowsMap[row.minute] = row;
-        }
+        });
       });
       self.postMessage(aggregatedGPU);
     };
@@ -341,6 +347,7 @@ new Vue({
       buildAggregatedData({
         gpus: this.gpus,
         users: this.users,
+        minutes: d3.timeMinutes(this.fullStart, this.fullEnd),
         combinations: d3.allCombinations(this.gpus.map(g => g.index)),
       }, aggregatedData => {
         this.aggregatedGPU = aggregatedData;
