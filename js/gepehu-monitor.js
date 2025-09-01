@@ -1,4 +1,5 @@
 /* TODO
+ * - fix wheelzoom on split view
  * - fix aggregated data build to handle potentially missing lines between different gpus
  * - find better ways to handle hoverProcesses
  * - add help modal with links to sourcecode etc
