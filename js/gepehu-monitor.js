@@ -1,6 +1,5 @@
 /* TODO
  * - add some cron data backup
- * - fix no GPU selected breaks app
  * - fix wheelzoom on split view
  * - optimize more by moving also csv parsing to worker
  * - find better ways to handle hoverProcesses
@@ -380,7 +379,7 @@ new Vue({
       this.end = new Date(this.maxDate || this.fullEnd);
 
       // Setup dimensions
-      const nbPlots = this.aggregateGPUs ? 1 : this.gpusChoices.length,
+      const nbPlots = this.aggregateGPUs ? 1 : Math.max(1, this.gpusChoices.length),
         margin = {top: 20, right: 70, bottom: 30, left: 40, horiz: 70, vert: 30},
         calendarH = document.querySelector("nav").getBoundingClientRect().height,
         mainH = window.innerHeight - calendarH,
@@ -399,12 +398,12 @@ new Vue({
           .attr("height", svgH);
 
       // Position GPU labels on each column
-      this.gpusChoices.forEach(idx => {
+      this.gpusChoices.forEach((idx, j) => {
         this.gpus[idx].style = {
           "font-size": "14px",
           "background-color": this.gpus[idx].color,
           top: margin.top + "px",
-          left: (margin.left + idx * (this.width + margin.horiz)) + "px"
+          left: (margin.left + j * (this.width + margin.horiz)) + "px"
         };
       });
 
