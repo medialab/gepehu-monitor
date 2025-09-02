@@ -126,13 +126,13 @@ new Vue({
     gpusDone: [],
     aggregateGPUs: true,
     metrics: [
-      {id: "usage_percent",     selected: true,  name: "GPU use",      unit: "%",  color: "deepskyblue"},
-      {id: "memory",            selected: true,  name: "Memory use",   unit: "Mo", color: "lawngreen"},
+      {id: "usage_percent",     selected: false, name: "GPU use",      unit: "%",  color: "deepskyblue"},
+      {id: "memory",            selected: false, name: "Memory use",   unit: "Mo", color: "lawngreen"},
       {id: "memory_percent",    selected: false, name: "Memory use",   unit: "%",  color: "lawngreen"},
-      {id: "energy",            selected: true,  name: "Energy",       unit: "W",  color: "gold"},
-      {id: "temperature",       selected: true,  name: "Temperature",  unit: "°C", color: "crimson"},
+      {id: "energy",            selected: false, name: "Energy",       unit: "W",  color: "gold"},
+      {id: "temperature",       selected: false, name: "Temperature",  unit: "°C", color: "crimson"},
       {id: "fan_speed_percent", selected: false, name: "Fan speed",    unit: "%",  color: "mediumorchid"},
-      {id: "n_processes",       selected: true,  name: "Processes",    unit: "",   color: "grey"}
+      {id: "n_processes",       selected: false, name: "Processes",    unit: "",   color: "grey"}
     ],
     users: [],
     usersColors: {},
@@ -178,7 +178,6 @@ new Vue({
   },
   // Initialize app
   mounted: function() {
-        console.log("INIT APP")
     // Initialize URL with default parameters if not already a permalink
     if (!window.location.hash)
       window.location.hash = this.url;
@@ -208,6 +207,9 @@ new Vue({
       if (!this.gpusChoices.length)
         for (let i = 0; i < this.gpus.length; i++)
           this.toggleGPU(i, true);
+      // Select default metrics if none set
+      if (!this.metricsChoices.length)
+        ["usage_percent", "memory", "energy", "temperature", "n_processes"].forEach(m => this.toggleMetric(m, true));
       // Defaults to only the last 15 days
       if (!this.minDate && !this.maxDate) {
         const start = new Date();
