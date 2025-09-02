@@ -1,4 +1,5 @@
 /* TODO
+ * - add some cron data backup
  * - fix no GPU selected breaks app
  * - fix wheelzoom on split view
  * - optimize more by moving also csv parsing to worker
@@ -118,6 +119,7 @@ new Vue({
   el: "#dashboard",
   data: {
     loading: 1,
+    reloading: false,
     resizing: false,
     gpus: [],
     gpusToDo: [],
@@ -264,6 +266,8 @@ new Vue({
       // Do not refresh data if current zooming action
       if (this.brushing != null) return;
 
+      if (!this.loading) this.reloading = true;
+
       if (!this.loading && !this.maxDate) this.loading = 0.2;
 
       // Cleanup preexisting data
@@ -358,9 +362,9 @@ new Vue({
     // Refresh plots if required
     draw: function(lazy) {
       // Do nothing if post-processing never happened yet
-      if (!Object.keys(this.usersColors).length) return;
+      if (!Object.keys(this.usersColors).length) return this.reloading = false;
       // Do not refresh plots with latest data if zoomed in the past
-      if (this.maxDate && lazy) return;
+      if (this.maxDate && lazy) return this.reloading = false;
       if (!this.loading) this.loading = 0.5;
       setTimeout(this.reallyDraw, 50);
     },
@@ -590,6 +594,7 @@ new Vue({
 
       this.clearTooltip();
       this.loading = 0;
+      this.reloading = false;
     },
     // Remove hover tooltip when the mouse is leaving the plot
     clearTooltip: function() {

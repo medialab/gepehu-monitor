@@ -104,16 +104,20 @@
         <v-title>GPUse</v-title>
       </v-toolbar-title>
       <v-spacer></v-spacer>
+
       <a href="https://medialab.sciencespo.fr/" target="_blank" class="medialab">
         <img src="css/medialab.png" alt="médialab Sciences Po" height=35 />
       </a>
       <v-spacer></v-spacer>
+
+      <img v-if="reloading" id="miniloader" src="css/loader.gif" alt="loader" />
+
       <div class="calendar" :style="{opacity: 1 - loading, display: gpusChoices.length ? 'block' : 'none'}"></div>
     </v-toolbar>
 
     <main>
-      <center id="loader" v-if="loading">
-        <img src="css/loader.gif" alt="loader" /><br/>
+      <center id="loader" v-if="loading && !reloading">
+        <img src="css/loader.gif" alt="loader" />
       </center>
 
       <div class="svg" :style="{opacity: 1 - loading, display: gpusChoices.length ? 'block' : 'none'}">
