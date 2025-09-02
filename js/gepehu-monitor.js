@@ -289,12 +289,12 @@ new Vue({
             gpu.rows = d3.csvParse(res, d => {
               d.datetime = new Date(d.datetime);
               d.minute = d3.minutize(d.datetime);
-              d.usage_percent = parseFloat(d.usage_percent) / 100;
-              d.memory_percent = parseFloat(d.memory_percent) / 100;
-              d.memory = parseInt(d.memory);
-              d.energy = parseInt(d.energy);
-              d.temperature = parseInt(d.temperature);
-              d.fan_speed_percent = parseInt(d.fan_speed) / 100;
+              d.usage_percent = +d.usage_percent / 100;
+              d.memory_percent = +d.memory_percent / 100;
+              d.memory = +d.memory;
+              d.energy = +d.energy;
+              d.temperature = +d.temperature;
+              d.fan_speed_percent = +d.fan_speed / 100;
               d.users = d.users.split("§").filter(x => x);
               d.users.forEach(u => {
                 if (!~this.users.indexOf(u))

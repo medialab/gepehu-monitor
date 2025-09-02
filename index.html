@@ -110,7 +110,7 @@
       </a>
       <v-spacer></v-spacer>
 
-      <img v-if="reloading" id="miniloader" src="css/loader.gif" alt="loader" />
+      <img v-if="loading || reloading" id="miniloader" src="css/loader.gif" alt="loader" />
 
       <div class="calendar" :style="{opacity: 1 - loading, display: gpusChoices.length ? 'block' : 'none'}"></div>
     </v-toolbar>
