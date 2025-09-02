@@ -1,6 +1,5 @@
 /* TODO
  * - add some cron data backup
- * - fix wheelzoom on split view
  * - optimize more by moving also csv parsing to worker
  * - find better ways to handle hoverProcesses
  * - add help modal with links to sourcecode etc
@@ -719,10 +718,11 @@ new Vue({
     },
     // Use mouse wheel to zoom-focus or unfocus
     wheelZoom: function(event) {
-      const zoomRatio = 1.5,
+      const zoomRatio = 3,
+        gpu_idx = event.target.attributes.gpu_idx.value,
         direction = (event.deltaY && event.deltaY > 0 ? -1 : 1),
         zoomFactor = (direction === 1 ? 1 / zoomRatio : zoomRatio),
-        zoomCenter = event.pageX - this.svgX - this.brushing * this.gapX;
+        zoomCenter = event.pageX - this.svgX - gpu_idx * this.gapX;
       if ((direction == 1 && this.end - this.start < 1_800_000) || (direction == -1 && this.start == this.fullStart && this.end == this.fullEnd )) return;
 
       if (direction === 1)
